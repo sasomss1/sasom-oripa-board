@@ -37,6 +37,11 @@
   .file-row input[type=file]{display:none;}
   .file-status{font-size:12.5px; color:var(--sub); margin-top:6px;}
   .btn-confirm{background:var(--dark); color:#fff; border:none; border-radius:12px; padding:15px; font-size:15px; font-weight:500; cursor:pointer; text-align:center; width:100%;}
+  .export-dropdown{position:relative; display:inline-block;}
+  .export-menu{position:absolute; top:calc(100% + 6px); right:0; background:#fff; border:1px solid var(--gray-line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); min-width:150px; z-index:30; display:none; overflow:hidden;}
+  .export-menu.open{display:block;}
+  .export-menu-item{padding:10px 14px; font-size:13px; cursor:pointer; white-space:nowrap; color:var(--dark); text-align:left;}
+  .export-menu-item:hover{background:var(--gray-bg);}
   .btn-confirm.disabled{opacity:.4; cursor:not-allowed;}
   .error-box{background:#FBEAEA; border:1px solid #E9B9B9; color:#C0392B; border-radius:10px; padding:12px 14px; font-size:13px; margin-top:14px; display:none;}
 
@@ -128,8 +133,13 @@
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
       <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
       <div style="display:flex; gap:8px;">
-        <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportSelectedBoardsCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
-        <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportAllBoardsCSV()"><span data-th>ส่งออกทั้งหมด</span><span data-en>Export All</span></button>
+        <div class="export-dropdown">
+          <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="toggleExportMenu('exportMenuSeller')"><span data-th>ส่งออก</span><span data-en>Export</span> ▾</button>
+          <div class="export-menu" id="exportMenuSeller">
+            <div class="export-menu-item" onclick="exportSelectedBoards('csv')">CSV</div>
+            <div class="export-menu-item" onclick="exportSelectedBoards('sheet')">Google Sheet</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -180,6 +190,33 @@ function downloadCSV(filename, rows){
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ---- Export menu (dropdown) ----
+function toggleExportMenu(id){
+  document.querySelectorAll('.export-menu').forEach(function(m){ if(m.id !== id) m.classList.remove('open'); });
+  document.getElementById(id).classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.export-dropdown')){
+    document.querySelectorAll('.export-menu').forEach(function(m){ m.classList.remove('open'); });
+  }
+});
+
+function exportRows(rows, filenameBase, format){
+  document.querySelectorAll('.export-menu').forEach(function(m){ m.classList.remove('open'); });
+  if(format === 'sheet'){
+    if(!apiConfigured()){ alert('API_URL not set — cannot create a Google Sheet'); return; }
+    fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'createSheet', title: filenameBase, rows: rows }) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if(res.ok) window.open(res.url, '_blank');
+        else alert('Create sheet failed: ' + res.error);
+      })
+      .catch(function(err){ alert('Create sheet failed: ' + err.message); });
+  } else {
+    downloadCSV(filenameBase + '.csv', rows);
+  }
 }
 
 function boardToCSVBlock(b){
@@ -248,7 +285,7 @@ function updateSelectedCountLabel(){
   if(lbl) lbl.textContent = n ? ('(' + n + ' selected)') : '';
 }
 
-function exportBoardsMulti(list, filenamePrefix){
+function exportBoardsMulti(list, filenamePrefix, format){
   var combined = [];
   list.forEach(function(b, i){
     if(i > 0){
@@ -258,18 +295,19 @@ function exportBoardsMulti(list, filenamePrefix){
     }
     combined = combined.concat(boardToCSVBlock(b));
   });
-  downloadCSV(filenamePrefix + '.csv', combined);
+  exportRows(combined, filenamePrefix, format);
 }
 
-function exportSelectedBoardsCSV(){
+function exportSelectedBoards(format){
+  // With only one board, there's no checkbox UI at all — just export that board.
+  if(myBoards.length <= 1){
+    exportBoardsMulti(myBoards, 'my-board', format);
+    return;
+  }
   var idxs = Object.keys(selectedBoardIdx).map(Number);
   if(!idxs.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var list = idxs.map(function(i){ return myBoards[i]; });
-  exportBoardsMulti(list, 'selected-boards');
-}
-
-function exportAllBoardsCSV(){
-  exportBoardsMulti(myBoards, 'my-boards');
+  exportBoardsMulti(list, 'selected-boards', format);
 }
 
 function tryEnter(){
