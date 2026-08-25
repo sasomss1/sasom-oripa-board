@@ -48,6 +48,9 @@
   .card h2{font-size:17px; font-weight:600; margin:0 0 4px;}
   .card .desc{font-size:13px; color:var(--sub); margin:0 0 22px;}
   .card-head-row{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px;}
+  .pricing-toggle-wrap{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .pricing-toggle-wrap .toggle-pill .opt.on.active{background:#2E7D32;}
+  .pricing-toggle-wrap .toggle-pill .opt.off.active{background:#C0392B;}
   .card-head-row h2{margin-bottom:4px;}
   .change-btn{border:1px solid var(--gray-line); background:#fff; border-radius:9px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; flex-shrink:0;}
   .change-btn:disabled{opacity:.4; cursor:not-allowed;}
@@ -107,6 +110,8 @@
   .mini-item-list{padding:0 16px 16px;}
   .mini-item-list:empty{display:none;}
   .mini-item{display:flex; align-items:center; gap:10px; background:var(--gray-bg); border-radius:10px; padding:8px 12px; margin-top:8px; font-size:13px;}
+  .mini-item.drag-over{outline:2px dashed var(--dark); outline-offset:-2px;}
+  .mi-drag{color:#B5B5B5; cursor:grab; font-size:16px; flex-shrink:0; line-height:1;}
   .mini-item img{width:32px; height:32px; border-radius:7px; object-fit:cover; flex-shrink:0; background:#fff;}
   .mini-item .mi-noimg{width:32px; height:32px; border-radius:7px; background:#E2E2E2; flex-shrink:0;}
   .mini-item .mi-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;}
@@ -253,6 +258,8 @@
   .slot-picker{display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:8px; margin-top:8px; padding:12px; background:var(--gray-bg); border-radius:10px; max-height:280px; overflow-y:auto;}
   .slot-pill{border:1px solid var(--gray-line); background:#fff; border-radius:7px; padding:8px 4px; font-size:11px; font-weight:500; cursor:pointer; user-select:none; text-align:center;}
   .slot-pill.selected{background:var(--dark); color:#fff; border-color:var(--dark);}
+  .slot-pill.locked{background:#EDEDED; color:#B5B5B5; cursor:not-allowed; text-decoration:line-through;}
+  .sold-row.sr-locked{opacity:.65;}
 
   .board-row{border:1px solid var(--gray-line); border-radius:14px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px;}
   .boards-filter-row{display:flex; align-items:flex-end; gap:14px; margin-bottom:18px; flex-wrap:wrap;}
@@ -325,7 +332,16 @@
   </div>
 
   <div class="card">
-    <h2><span data-th>ราคาและการคำนวณ</span><span data-en>Pricing & Calculation</span></h2>
+    <div class="card-head-row">
+      <h2><span data-th>ราคาและการคำนวณ</span><span data-en>Pricing & Calculation</span></h2>
+      <div class="pricing-toggle-wrap">
+        <span class="hint"><span data-th>แสดงให้ Seller เห็น</span><span data-en>Show to Seller</span></span>
+        <div class="toggle-pill" id="pricingToggle" onclick="setPricingToSeller(!showPricingToSeller)">
+          <div class="opt off"><span data-th>ปิด</span><span data-en>Off</span></div>
+          <div class="opt on active"><span data-th>เปิด</span><span data-en>On</span></div>
+        </div>
+      </div>
+    </div>
 
     <div class="row3">
       <div class="field">
@@ -623,9 +639,10 @@
     <div id="wizStep3" style="display:none;">
       <div class="product-mini-card" id="pmcBox2"></div>
       <div class="row2">
-        <div class="field"><label><span data-th>ราคา</span><span data-en>Price</span></label><div class="prefix-input"><span>฿</span><input type="number" id="wizPrice" placeholder=""></div></div>
+        <div class="field"><label><span data-th>ราคา (ไม่บังคับ)</span><span data-en>Price (optional)</span></label><div class="prefix-input"><span>฿</span><input type="number" id="wizPrice" placeholder=""></div></div>
         <div class="field" id="wizQtyField"><label><span data-th>จำนวน</span><span data-en>Qty</span></label><input type="number" id="wizQty" value="1"></div>
       </div>
+      <p class="hint" id="wizQtyHint" style="margin:-8px 0 16px; display:none;"><span data-th>* สำหรับรายการฮิต แต่ละจำนวนจะถูกแยกเป็นคนละเลขฮิต (คนละ S-00x) โดยอัตโนมัติ</span><span data-en>* For hit items, each unit becomes its own separate hit number (its own S-00x)</span></p>
       <div class="btn-row">
         <div class="btn-cancel" onclick="backFromStep3()"><span data-th>ย้อนกลับ</span><span data-en>Back</span></div>
         <div class="btn-confirm" onclick="confirmWizardAdd()"><span data-th>เพิ่ม</span><span data-en>Add</span></div>
@@ -667,8 +684,8 @@
 // ============== DATA (blank template) ==============
 var TIER_LADDER = ['SSS','SS+','SS','SS-','S+','S','S-','AA+','AA','AA-','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-','F+','F','F-'];
 
-var hitItems = [];       // {name, sku, img, condition, price}
-var nonHitItems = [];    // {name, sku, img, condition, isRaw, price, qty}
+var hitItems = [];       // {uid, name, sku, img, condition, price}
+var nonHitItems = [];    // {uid, name, sku, img, condition, isRaw, price, qty}
 var lastOneItem = null;  // {name, price}
 
 var sellerEmails = [
@@ -680,6 +697,7 @@ var currentSellerEmail = null;
 var savedBoards = []; // {sellerEmail, boardName, stats, entriesSnapshot, lastOneSnapshot, status, liveSessions}
 var boardStatus = 'PREPARE'; // 'PREPARE' | 'ON' | 'OFF'
 var sellerFeePct = 5; // platform fee % deducted from seller payout, editable per board
+var showPricingToSeller = true; // if false, seller.html hides the Pricing & Calculation card entirely
 var liveSessions = []; // {id, date, note, sales:[{label, sold, qty}], paymentStatus:'PENDING'|'DONE'|'CANCEL'}
 
 var GRADE_SETS = {
@@ -697,12 +715,17 @@ var GRADE_SETS = {
 };
 
 function fmt(n){ return '฿' + Math.round(n).toLocaleString('en-US'); }
+function fmtPrice(n){ return n ? fmt(n) : '—'; }
 
 // ============== TIER TABLE (derived, read-only) ==============
+var uidCounter = 0;
+function genUid(){ uidCounter += 1; return 'u' + Date.now().toString(36) + uidCounter; }
+
 function getCombinedEntries(){
-  var entries = hitItems.map(function(h){ return {label:h.name, sku:h.sku, img:h.img, condition:h.condition, price:h.price, qty:1, nonHit:false}; })
-    .concat(nonHitItems.map(function(n){ return {label:n.name, sku:n.sku, img:n.img, condition:n.isRaw ? 'Raw' : n.condition, price:n.price, qty:n.qty, nonHit:true}; }));
-  entries.sort(function(a,b){ return b.price - a.price; });
+  // Order is preserved exactly as arranged (drag-to-reorder), never re-sorted by price.
+  // Hit items always occupy the earlier slot numbers, non-hit items fill in after.
+  var entries = hitItems.map(function(h){ return {uid:h.uid, label:h.name, sku:h.sku, img:h.img, condition:h.condition, price:h.price, qty:1, nonHit:false}; })
+    .concat(nonHitItems.map(function(n){ return {uid:n.uid, label:n.name, sku:n.sku, img:n.img, condition:n.isRaw ? 'Raw' : n.condition, price:n.price, qty:n.qty, nonHit:true}; }));
   return entries;
 }
 
@@ -750,7 +773,7 @@ function buildSlotMap(){
   var slotNo = 1;
   getCombinedEntries().forEach(function(e){
     var start = slotNo; slotNo += e.qty; var end = slotNo - 1;
-    map[e.label] = {start:start, end:end, qty:e.qty};
+    map[e.uid] = {start:start, end:end, qty:e.qty};
   });
   return map;
 }
@@ -761,38 +784,48 @@ function renderMiniLists(){
   var hitWrap = document.getElementById('hitItemList');
   hitWrap.innerHTML = '';
   hitItems.forEach(function(item, i){
-    var slot = slotMap[item.name];
+    var slot = slotMap[item.uid];
     var slotBadge = slot ? padSlot(slot.start) : '';
     var d = document.createElement('div');
     d.className = 'mini-item';
+    d.draggable = true;
+    d.dataset.idx = i;
+    d.dataset.list = 'hit';
     d.innerHTML =
+      '<span class="mi-drag">⠿</span>'+
       miniImgHtml(item.img)+
       (slotBadge ? '<span class="mi-slot">'+slotBadge+'</span>' : '')+
       '<div style="flex:1; min-width:0;">'+
         '<div class="mi-name">'+item.name+'</div>'+
         '<div class="mi-sub">'+(item.sku ? 'SKU · '+item.sku+' · ' : '')+(item.condition||'')+'</div>'+
       '</div>'+
-      '<div class="mi-price">'+fmt(item.price)+'</div>'+
+      '<div class="mi-price">'+fmtPrice(item.price)+'</div>'+
       '<span class="mi-remove" onclick="removeHitItem('+i+')">×</span>';
+    attachDragHandlers(d, 'hit');
     hitWrap.appendChild(d);
   });
 
   var nhWrap = document.getElementById('nonHitItemList');
   nhWrap.innerHTML = '';
   nonHitItems.forEach(function(item, i){
-    var slot = slotMap[item.name];
+    var slot = slotMap[item.uid];
     var slotBadge = slot ? (slot.qty === 1 ? padSlot(slot.start) : padSlot(slot.start)+' – '+padSlot(slot.end)) : '';
     var d = document.createElement('div');
     d.className = 'mini-item';
+    d.draggable = true;
+    d.dataset.idx = i;
+    d.dataset.list = 'nonhit';
     d.innerHTML =
+      '<span class="mi-drag">⠿</span>'+
       miniImgHtml(item.img)+
       (slotBadge ? '<span class="mi-slot">'+slotBadge+'</span>' : '')+
       '<div style="flex:1; min-width:0;">'+
         '<div class="mi-name">'+item.name+'</div>'+
         '<div class="mi-sub">'+(item.isRaw ? 'Raw' : (item.condition||''))+' · ×'+item.qty+'</div>'+
       '</div>'+
-      '<div class="mi-price">'+fmt(item.price)+' <span style="color:var(--sub); font-weight:400;">/<span data-th>ใบ</span><span data-en>ea</span></span></div>'+
+      '<div class="mi-price">'+fmtPrice(item.price)+' <span style="color:var(--sub); font-weight:400;">/<span data-th>ใบ</span><span data-en>ea</span></span></div>'+
       '<span class="mi-remove" onclick="removeNonHitItem('+i+')">×</span>';
+    attachDragHandlers(d, 'nonhit');
     nhWrap.appendChild(d);
   });
 
@@ -805,6 +838,27 @@ function renderMiniLists(){
     loWrap.appendChild(d2);
   }
   document.getElementById('lastOneCount').textContent = lastOneItem ? 1 : 0;
+}
+
+var dragSrcIdx = null;
+function attachDragHandlers(el, listName){
+  el.addEventListener('dragstart', function(e){
+    dragSrcIdx = +el.dataset.idx;
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragover', function(e){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', function(){ el.classList.remove('drag-over'); });
+  el.addEventListener('drop', function(e){
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    var targetIdx = +el.dataset.idx;
+    if(dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+    var arr = listName === 'hit' ? hitItems : nonHitItems;
+    var moved = arr.splice(dragSrcIdx, 1)[0];
+    arr.splice(targetIdx, 0, moved);
+    dragSrcIdx = null;
+    recalc();
+  });
 }
 
 function removeHitItem(i){ hitItems.splice(i,1); recalc(); }
@@ -957,7 +1011,7 @@ function openAddModal(type){
   document.getElementById('manualName').value = '';
   document.getElementById('manualImg').value = '';
   document.getElementById('manualSku').value = '';
-  document.getElementById('wizQtyField').style.display = (type === 'nonhit') ? 'block' : 'none';
+  document.getElementById('wizQtyField').style.display = 'block';
 
   setProductSource('link');
   document.getElementById('wizStep1').style.display = 'block';
@@ -1129,6 +1183,7 @@ function renderStep3ProductBox(){
     (wizProduct.sku ? '<div class="pmc-sub">SKU · '+wizProduct.sku+'</div>' : '')+
     (condLine ? '<div class="pmc-sub">'+condLine+'</div>' : '')+
     '</div>';
+  document.getElementById('wizQtyHint').style.display = (currentAddType === 'hit') ? 'block' : 'none';
 }
 
 function backFromStep3(){
@@ -1143,14 +1198,17 @@ function backFromStep3(){
 function confirmWizardAdd(){
   var price = +document.getElementById('wizPrice').value || 0;
   var qty = +document.getElementById('wizQty').value || 1;
-  if(!price) return;
+  if(qty < 1) qty = 1;
   var condition = currentConditionLabel();
   var isRaw = (wizProductType === 'Raw Card');
 
   if(currentAddType === 'hit'){
-    hitItems.push({name:wizProduct.name, sku:wizProduct.sku, img:wizProduct.img, condition:condition, price:price});
+    // Each unit of qty becomes its own separate hit entry — same product, distinct hit number.
+    for(var i = 0; i < qty; i++){
+      hitItems.push({uid:genUid(), name:wizProduct.name, sku:wizProduct.sku, img:wizProduct.img, condition:condition, price:price});
+    }
   } else {
-    nonHitItems.push({name:wizProduct.name, sku:wizProduct.sku, img:wizProduct.img, condition:condition, isRaw:isRaw, price:price, qty:qty});
+    nonHitItems.push({uid:genUid(), name:wizProduct.name, sku:wizProduct.sku, img:wizProduct.img, condition:condition, isRaw:isRaw, price:price, qty:qty});
   }
   closePicker('itemOverlay');
   recalc();
@@ -1163,6 +1221,18 @@ function setBoardStatus(status){
   document.querySelectorAll('.status-tab').forEach(function(t){
     t.classList.toggle('active', t.dataset.status === status);
   });
+}
+
+function setPricingToSeller(val){
+  showPricingToSeller = val;
+  updatePricingToggleUI();
+  maybeAutoSave();
+}
+
+function updatePricingToggleUI(){
+  var wrap = document.getElementById('pricingToggle');
+  wrap.querySelector('.opt.on').classList.toggle('active', showPricingToSeller);
+  wrap.querySelector('.opt.off').classList.toggle('active', !showPricingToSeller);
 }
 
 // ============== LIVE HISTORY ==============
@@ -1261,24 +1331,49 @@ function setPaymentStatus(idx, status){
 }
 
 var currentSalesSessionIdx = null;
+function getLabelForUid(uid){
+  var e = getCombinedEntries().find(function(x){ return x.uid === uid; });
+  return e ? e.label : '';
+}
+
+function getSoldElsewhere(excludeIdx){
+  // Anything already marked sold in a DIFFERENT live session can't be sold again.
+  var singleSoldDate = {};  // uid -> date it was already sold on
+  var slotSoldDate = {};    // uid -> { slotNum: date }
+  liveSessions.forEach(function(s, sIdx){
+    if(sIdx === excludeIdx) return;
+    (s.sales||[]).forEach(function(r){
+      if(!r.sold) return;
+      if(r.slots && r.slots.length){
+        if(!slotSoldDate[r.uid]) slotSoldDate[r.uid] = {};
+        r.slots.forEach(function(sn){ slotSoldDate[r.uid][sn] = s.date; });
+      } else {
+        if(!singleSoldDate[r.uid]) singleSoldDate[r.uid] = s.date;
+      }
+    });
+  });
+  return {singleSoldDate:singleSoldDate, slotSoldDate:slotSoldDate};
+}
+
 function openSalesModal(idx){
   currentSalesSessionIdx = idx;
   var session = liveSessions[idx];
   document.getElementById('salesModalDate').textContent = formatDateDMY(session.date) + (session.note ? ' · '+session.note : '');
 
   var entries = getCombinedEntries();
+  var soldElsewhere = getSoldElsewhere(idx);
   var wrap = document.getElementById('salesItemList');
   wrap.innerHTML = '';
   var slotNo = 1;
 
   entries.forEach(function(item, i){
     var startSlot = slotNo; slotNo += item.qty; var endSlot = slotNo - 1;
-    var existing = session.sales.find(function(r){ return r.label === item.label; });
+    var existing = session.sales.find(function(r){ return r.uid === item.uid; });
     var selectedSlots = (existing && existing.slots) ? existing.slots.slice() : [];
 
     var row = document.createElement('div');
     row.className = 'sold-row';
-    row.dataset.label = item.label;
+    row.dataset.uid = item.uid;
     row.dataset.qty = item.qty;
 
     var thumb = item.img ? '<img src="'+item.img+'">' : '<div class="sr-noimg"></div>';
@@ -1288,15 +1383,19 @@ function openSalesModal(idx){
     var subLine = subParts.join(' · ');
 
     if(item.qty === 1){
+      var soldDate = soldElsewhere.singleSoldDate[item.uid];
+      var lockedOut = !!soldDate;
+      if(lockedOut) row.classList.add('sr-locked');
       row.innerHTML =
-        '<input type="checkbox" id="soldChk-'+i+'" '+(existing && existing.sold ? 'checked' : '')+'>'+
+        '<input type="checkbox" id="soldChk-'+i+'" '+(existing && existing.sold ? 'checked' : '')+(lockedOut ? ' disabled' : '')+'>'+
         thumb+
         '<div class="sr-info">'+
           '<div class="sr-name">'+item.label+(item.nonHit?' · non-hit':'')+'</div>'+
           (subLine ? '<div class="sr-sub">'+subLine+'</div>' : '')+
           '<span class="slot-badge">'+padSlot(startSlot)+'</span>'+
+          (lockedOut ? '<div class="sr-sub" style="color:#C0392B;">'+'<span data-th>ขายไปแล้ว '+formatDateDMY(soldDate)+'</span><span data-en>Already sold '+formatDateDMY(soldDate)+'</span></div>' : '')+
         '</div>'+
-        '<div class="sr-price">'+fmt(item.price)+'</div>';
+        '<div class="sr-price">'+fmtPrice(item.price)+'</div>';
     } else {
       row.innerHTML =
         '<input type="checkbox" id="soldChk-'+i+'" '+(selectedSlots.length ? 'checked' : '')+' disabled>'+
@@ -1307,24 +1406,30 @@ function openSalesModal(idx){
           '<div class="sr-sub" id="slotCount-'+i+'">'+selectedSlots.length+' / '+item.qty+' <span data-th>ขายแล้ว</span><span data-en>sold</span></div>'+
           '<div class="slot-picker" id="slotPicker-'+i+'"></div>'+
         '</div>'+
-        '<div class="sr-price">'+fmt(item.price)+'</div>';
+        '<div class="sr-price">'+fmtPrice(item.price)+'</div>';
     }
     wrap.appendChild(row);
 
     if(item.qty > 1){
       var picker = row.querySelector('#slotPicker-'+i);
+      var slotsSoldElsewhere = soldElsewhere.slotSoldDate[item.uid] || {};
       for(var sn = startSlot; sn <= endSlot; sn++){
         (function(sn){
+          var lockedOut = slotsSoldElsewhere.hasOwnProperty(sn);
           var pill = document.createElement('div');
-          pill.className = 'slot-pill' + (selectedSlots.indexOf(sn) >= 0 ? ' selected' : '');
+          pill.className = 'slot-pill' + (selectedSlots.indexOf(sn) >= 0 ? ' selected' : '') + (lockedOut ? ' locked' : '');
           pill.textContent = 'S-'+String(sn).padStart(3,'0');
           pill.dataset.slotNum = sn;
-          pill.onclick = function(){
-            pill.classList.toggle('selected');
-            var selCount = picker.querySelectorAll('.slot-pill.selected').length;
-            document.getElementById('soldChk-'+i).checked = selCount > 0;
-            document.getElementById('slotCount-'+i).childNodes[0].textContent = selCount + ' / ' + item.qty + ' ';
-          };
+          if(lockedOut){
+            pill.title = 'Already sold ' + formatDateDMY(slotsSoldElsewhere[sn]);
+          } else {
+            pill.onclick = function(){
+              pill.classList.toggle('selected');
+              var selCount = picker.querySelectorAll('.slot-pill.selected').length;
+              document.getElementById('soldChk-'+i).checked = selCount > 0;
+              document.getElementById('slotCount-'+i).childNodes[0].textContent = selCount + ' / ' + item.qty + ' ';
+            };
+          }
           picker.appendChild(pill);
         })(sn);
       }
@@ -1333,9 +1438,10 @@ function openSalesModal(idx){
 
   if(lastOneItem){
     var loIdx = entries.length;
-    var loExisting = session.sales.find(function(r){ return r.label === lastOneItem.name; });
+    var loExisting = session.sales.find(function(r){ return r.label === lastOneItem.name && r.isLastOne; });
     var loRow = document.createElement('div');
     loRow.className = 'sold-row';
+    loRow.dataset.uid = 'lastone';
     loRow.dataset.label = lastOneItem.name;
     loRow.dataset.qty = 1;
     loRow.innerHTML =
@@ -1355,17 +1461,28 @@ function confirmSalesRecord(){
   var sales = [];
   rows.forEach(function(row, i){
     var qty = +row.dataset.qty;
+    var uid = row.dataset.uid;
+    if(uid === 'lastone'){
+      var chk = document.getElementById('soldChk-'+i);
+      if(chk && chk.checked){
+        sales.push({uid:'lastone', label: row.dataset.label, sold:true, qty:1, isLastOne:true});
+      }
+      return;
+    }
     if(qty > 1){
       var picker = row.querySelector('.slot-picker');
       var selectedPills = picker ? picker.querySelectorAll('.slot-pill.selected') : [];
       var slots = Array.prototype.map.call(selectedPills, function(p){ return +p.dataset.slotNum; });
       if(slots.length){
-        sales.push({label: row.dataset.label, sold:true, qty: slots.length, slots: slots});
+        sales.push({uid: uid, label: getLabelForUid(uid), sold:true, qty: slots.length, slots: slots});
       }
     } else {
-      var chk = document.getElementById('soldChk-'+i);
-      if(chk && chk.checked){
-        sales.push({label: row.dataset.label, sold:true, qty:1});
+      var chk2 = document.getElementById('soldChk-'+i);
+      if(chk2 && chk2.checked && !chk2.disabled){
+        sales.push({uid: uid, label: getLabelForUid(uid), sold:true, qty:1});
+      } else if(chk2 && chk2.disabled && chk2.checked){
+        // Row is locked (sold in another session) — keep it out of THIS session's record,
+        // it's already accounted for in the session that originally sold it.
       }
     }
   });
@@ -1387,6 +1504,7 @@ function maybeAutoSave(){
     status: boardStatus,
     color: boardColor,
     sellerFeePct: sellerFeePct,
+    showPricingToSeller: showPricingToSeller,
     createdAt: existing.createdAt || new Date().toISOString(),
     stats: recalc(),
     entriesSnapshot: JSON.parse(JSON.stringify(getCombinedEntries())),
@@ -1467,6 +1585,7 @@ function confirmBoard(){
     status: boardStatus,
     color: boardColor,
     sellerFeePct: sellerFeePct,
+    showPricingToSeller: showPricingToSeller,
     createdAt: existing && existing.createdAt ? existing.createdAt : new Date().toISOString(),
     stats: stats,
     entriesSnapshot: JSON.parse(JSON.stringify(getCombinedEntries())),
@@ -1647,6 +1766,8 @@ function resetForm(){
   document.getElementById('sellerFeePct').value = 5;
   sellerFeePct = 5;
   setBoardStatus('PREPARE');
+  showPricingToSeller = true;
+  updatePricingToggleUI();
 
   currentSellerEmail = null;
   var sellerEl = document.getElementById('sellerEmailText');
@@ -1685,14 +1806,17 @@ function loadBoardIntoForm(entry){
   hitItems = [];
   nonHitItems = [];
   (entry.entriesSnapshot || []).forEach(function(e){
+    var uid = e.uid || genUid(); // back-compat for boards saved before uid tracking existed
     if(e.nonHit){
-      nonHitItems.push({name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition==='Raw' ? '' : e.condition, isRaw:e.condition==='Raw', price:e.price, qty:e.qty});
+      nonHitItems.push({uid:uid, name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition==='Raw' ? '' : e.condition, isRaw:e.condition==='Raw', price:e.price, qty:e.qty});
     } else {
-      hitItems.push({name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition||'', price:e.price});
+      hitItems.push({uid:uid, name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition||'', price:e.price});
     }
   });
   lastOneItem = entry.lastOneSnapshot || null;
   liveSessions = entry.liveSessions || [];
+  showPricingToSeller = (entry.showPricingToSeller !== false);
+  updatePricingToggleUI();
 
   recalc();
   renderLiveHistory();
