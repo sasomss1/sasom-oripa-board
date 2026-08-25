@@ -286,6 +286,36 @@
   .board-row-stats{display:flex; gap:20px; font-size:12.5px; color:var(--sub); flex-shrink:0;}
   .board-row-stats b{display:block; color:var(--dark); font-size:14px; font-weight:600;}
   .board-row-actions{display:flex; gap:8px; flex-shrink:0;}
+
+  /* ===== Mobile (iPhone etc.) — additive only, desktop styles above untouched ===== */
+  @media (max-width: 640px){
+    body{ padding:10px; }
+    .modal{ padding:22px 16px; border-radius:16px; max-width:100%; }
+    .card{ padding:18px 16px; }
+    .modal-head{ flex-wrap:wrap; gap:12px; }
+    .modal-head h1{ font-size:19px; }
+    .head-right{ width:100%; flex-wrap:wrap; gap:8px; }
+    .sp-nav-row{ flex-wrap:wrap; }
+    .sp-nav-actions{ flex-wrap:wrap; width:100%; }
+    .sp-nav-actions button{ flex:1; }
+    .row2, .row3{ flex-direction:column; gap:0; }
+    .row2 .field, .row3 .field{ margin-bottom:20px; }
+    .stat-grid{ grid-template-columns:repeat(2,1fr); }
+    .live-pay-grid{ grid-template-columns:1fr; }
+    .live-pay-status-row{ justify-content:flex-start; }
+    .board-row{ flex-direction:column; align-items:flex-start; }
+    .board-row-stats{ flex-wrap:wrap; row-gap:10px; width:100%; }
+    .board-row-actions{ width:100%; justify-content:flex-end; }
+    .boards-filter-row{ flex-direction:column; align-items:stretch; }
+    .boards-filter-row .toggle-pill{ align-self:flex-start; }
+    .grade-grid{ gap:6px; }
+    .grade-cell{ padding:12px 4px; }
+    .type-grid{ grid-template-columns:1fr; }
+    .pick-modal, .pick-modal.wide{ max-width:100%; margin:0 8px; }
+    .top-row{ flex-direction:column; }
+    .summary-counts{ flex-direction:column; }
+    .item-top{ flex-wrap:wrap; }
+  }
 </style>
 </head>
 <body>
@@ -1738,9 +1768,21 @@ function saveBoardToServer(entry){
 
 // ============== CONFIRM BOARD / SELLER PREVIEW ==============
 function confirmBoard(){
+  var boardName = document.getElementById('boardName').value.trim();
+  var pricePerSpot = +document.getElementById('pricePerSpot').value || 0;
+
+  var missing = [];
+  if(!boardName) missing.push('Board name / ชื่อบอร์ด');
+  if(!boardColor) missing.push('Envelope color / สีซอง');
+  if(!pricePerSpot) missing.push('Price per spot / ราคาต่อช่อง');
+  if(!currentSellerEmail) missing.push('Seller Email');
+
+  if(missing.length){
+    alert('กรุณากรอกให้ครบก่อนกด Confirm / Please fill in the following before confirming:\n\n- ' + missing.join('\n- '));
+    return;
+  }
+
   var stats = recalc();
-  var boardName = document.getElementById('boardName').value || 'Untitled Board';
-  if(!currentSellerEmail){ alert('กรุณาเลือก seller ก่อนยืนยัน / Please select a seller before confirming'); return; }
 
   var existing = savedBoards.find(function(b){ return b.sellerEmail===currentSellerEmail && b.boardName===boardName; });
   var entry = {
