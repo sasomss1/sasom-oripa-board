@@ -141,6 +141,7 @@ var myBoards = [];
 var currentBoardIdx = 0;
 
 function fmt(n){ return '฿' + Math.round(n).toLocaleString('en-US'); }
+function fmtPrice(n){ return n ? fmt(n) : '—'; }
 function formatDateDMY(iso){
   if(!iso) return '—';
   var parts = iso.split('-');
@@ -228,17 +229,19 @@ function renderBoard(){
       '<div class="count-box"><div class="label"><span data-th>จำนวนไม่ฮิต</span><span data-en>Non-hit count</span></div><div class="value">'+b.stats.nonHitCount+'</div></div>'+
     '</div></div>';
 
-  html += '<div class="card"><h2><span data-th>ราคาและการคำนวณ</span><span data-en>Pricing & Calculation</span></h2>'+
-    '<div class="stat-grid">'+
-      '<div class="stat-card accent"><div class="l"><span data-th>รายได้สูงสุด</span><span data-en>Max Money</span></div><div class="v">'+fmt(b.stats.maxMoney)+'</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>ต้นทุนรวม</span><span data-en>Total Cost</span></div><div class="v">'+fmt(b.stats.totalCost)+'</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>ต้นทุน %</span><span data-en>Cost %</span></div><div class="v">'+b.stats.costPct.toFixed(2)+'%</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>กำไรถ้าขายหมด</span><span data-en>Profit if sold out</span></div><div class="v">'+fmt(b.stats.profit)+'</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>กำไร %</span><span data-en>Profit %</span></div><div class="v">'+b.stats.profitPct.toFixed(2)+'%</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>มูลค่าเฉลี่ยต่อจุ่ม</span><span data-en>Avg prize / pull</span></div><div class="v">'+fmt(b.stats.avgPrize)+'</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>ราคาที่ไม่ขาดทุน</span><span data-en>Break-even price</span></div><div class="v">'+fmt(b.stats.breakEven)+'</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>จำนวนจุ่มทั้งหมด</span><span data-en>Total pulls</span></div><div class="v">'+b.stats.totalSlots+'</div></div>'+
-    '</div></div>';
+  if(b.showPricingToSeller !== false){
+    html += '<div class="card"><h2><span data-th>ราคาและการคำนวณ</span><span data-en>Pricing & Calculation</span></h2>'+
+      '<div class="stat-grid">'+
+        '<div class="stat-card accent"><div class="l"><span data-th>รายได้สูงสุด</span><span data-en>Max Money</span></div><div class="v">'+fmt(b.stats.maxMoney)+'</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>ต้นทุนรวม</span><span data-en>Total Cost</span></div><div class="v">'+fmt(b.stats.totalCost)+'</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>ต้นทุน %</span><span data-en>Cost %</span></div><div class="v">'+b.stats.costPct.toFixed(2)+'%</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>กำไรถ้าขายหมด</span><span data-en>Profit if sold out</span></div><div class="v">'+fmt(b.stats.profit)+'</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>กำไร %</span><span data-en>Profit %</span></div><div class="v">'+b.stats.profitPct.toFixed(2)+'%</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>มูลค่าเฉลี่ยต่อจุ่ม</span><span data-en>Avg prize / pull</span></div><div class="v">'+fmt(b.stats.avgPrize)+'</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>ราคาที่ไม่ขาดทุน</span><span data-en>Break-even price</span></div><div class="v">'+fmt(b.stats.breakEven)+'</div></div>'+
+        '<div class="stat-card"><div class="l"><span data-th>จำนวนจุ่มทั้งหมด</span><span data-en>Total pulls</span></div><div class="v">'+b.stats.totalSlots+'</div></div>'+
+      '</div></div>';
+  }
 
   html += '<div class="item-list">';
   var slotNo = 1;
@@ -249,7 +252,7 @@ function renderBoard(){
       (e.img ? '<img src="'+e.img+'">' : '')+
       '<span class="item-badge">'+rangeLabel+'</span>'+
       '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
-      '<div class="item-price">'+fmt(e.price)+' × '+e.qty+'</div>'+
+      '<div class="item-price">'+fmtPrice(e.price)+' × '+e.qty+'</div>'+
     '</div></div>';
   });
   if(b.lastOneSnapshot){
@@ -263,9 +266,10 @@ function renderBoard(){
 
   var entryMap = {}, slotMap = {}, sNo = 1;
   (b.entriesSnapshot||[]).forEach(function(e){
-    entryMap[e.label] = e;
+    var key = e.uid || e.label; // back-compat for boards saved before uid tracking existed
+    entryMap[key] = e;
     var start = sNo; sNo += e.qty; var end = sNo - 1;
-    slotMap[e.label] = {start:start, end:end};
+    slotMap[key] = {start:start, end:end};
   });
 
   var totalSpotsSold = 0, totalSaleValue = 0, totalFee = 0, totalPayout = 0;
@@ -302,7 +306,7 @@ function renderBoard(){
             (entry.img ? '<img src="'+entry.img+'">' : '')+
             '<div class="item-badges">'+badgesHtml+'</div>'+
             '<div class="item-info"><div class="item-name">'+r.label+'</div><div class="item-sub">'+(entry.condition||'')+'</div></div>'+
-            '<div class="item-price">'+fmt(entry.price||0)+' × '+r.qty+'</div>'+
+            '<div class="item-price">'+fmtPrice(entry.price)+' × '+r.qty+'</div>'+
           '</div></div>';
         });
         html += '</div>';
