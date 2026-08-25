@@ -102,6 +102,15 @@
   .sold-item-row{display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0; border-top:1px solid var(--gray-line);}
   .sold-item-row:first-child{border-top:none;}
 
+  .board-row{border:1px solid var(--gray-line); border-radius:14px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px; cursor:pointer;}
+  .board-row-main{flex:1; min-width:0;}
+  .board-row-title{display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px; flex-wrap:wrap;}
+  .board-row-sub{font-size:12.5px; color:var(--sub); margin-top:2px;}
+  .board-row-stats{display:flex; gap:20px; font-size:12.5px; color:var(--sub); flex-shrink:0;}
+  .board-row-stats b{display:block; color:var(--dark); font-size:14px; font-weight:600;}
+  .board-row-actions{flex-shrink:0;}
+  .board-select-chk{flex-shrink:0;}
+
   /* ===== Mobile (iPhone etc.) — additive only, desktop styles above untouched ===== */
   @media (max-width: 640px){
     body{ padding:10px; }
@@ -116,6 +125,8 @@
     .item-top{ flex-wrap:wrap; }
     .item-badges{ max-width:100%; }
     .live-session-top-row{ flex-wrap:wrap; gap:6px; }
+    .board-row{ flex-direction:column; align-items:flex-start; }
+    .board-row-stats{ flex-wrap:wrap; row-gap:10px; width:100%; }
   }
 </style>
 </head>
@@ -147,22 +158,29 @@
 
   <!-- BOARD LIST + DETAIL VIEW -->
   <div id="boardsView" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-      <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
-      <div style="display:flex; gap:8px;">
+
+    <!-- LIST SUB-VIEW (default after login) -->
+    <div id="boardsListSubView">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+        <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
         <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       </div>
+
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <input type="checkbox" id="selectAllBoards" onchange="toggleSelectAllBoards(this.checked)">
+        <label for="selectAllBoards" style="font-size:13px; color:var(--sub); cursor:pointer;"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></label>
+        <span id="selectedCountLabel" style="font-size:12.5px; color:var(--sub);"></span>
+      </div>
+
+      <div id="sellerBoardsListWrap"></div>
     </div>
 
-    <div id="multiSelectRow" style="display:none; align-items:center; gap:8px; margin-bottom:12px;">
-      <input type="checkbox" id="selectAllBoards" onchange="toggleSelectAllBoards(this.checked)">
-      <label for="selectAllBoards" style="font-size:13px; color:var(--sub); cursor:pointer;"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></label>
-      <span id="selectedCountLabel" style="font-size:12.5px; color:var(--sub);"></span>
+    <!-- DETAIL SUB-VIEW (shown after clicking a board) -->
+    <div id="boardDetailSubView" style="display:none;">
+      <div class="back-link" onclick="showBoardsList()">← <span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></div>
+      <div id="boardDetail"></div>
     </div>
 
-    <div id="boardSwitcher" style="margin-bottom:16px;"></div>
-
-    <div id="boardDetail"></div>
   </div>
 </div>
 
@@ -251,6 +269,7 @@ function onBoardCheckChange(idx, checked){
   if(checked) selectedBoardIdx[idx] = true;
   else delete selectedBoardIdx[idx];
   updateSelectedCountLabel();
+  updateSelectAllCheckboxState();
 }
 
 function toggleSelectAllBoards(checked){
@@ -261,6 +280,14 @@ function toggleSelectAllBoards(checked){
     else delete selectedBoardIdx[idx];
   });
   updateSelectedCountLabel();
+}
+
+function updateSelectAllCheckboxState(){
+  var selectAll = document.getElementById('selectAllBoards');
+  if(!selectAll) return;
+  var chks = document.querySelectorAll('.board-select-chk');
+  if(!chks.length){ selectAll.checked = false; return; }
+  selectAll.checked = Array.prototype.every.call(chks, function(c){ return c.checked; });
 }
 
 function updateSelectedCountLabel(){
@@ -283,15 +310,10 @@ function exportBoardsMulti(list, filenamePrefix){
 }
 
 function exportSelectedBoards(){
-  // With only one board, there's no checkbox UI at all — just export that board.
-  if(myBoards.length <= 1){
-    exportBoardsMulti(myBoards, 'my-board');
-    return;
-  }
   var idxs = Object.keys(selectedBoardIdx).map(Number);
   if(!idxs.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var list = idxs.map(function(i){ return myBoards[i]; });
-  exportBoardsMulti(list, 'selected-boards');
+  exportBoardsMulti(list, idxs.length === myBoards.length ? 'my-boards' : 'selected-boards');
 }
 
 function tryEnter(){
@@ -324,11 +346,10 @@ function tryEnter(){
         errEl.style.display = 'block';
         return;
       }
-      currentBoardIdx = 0;
+      selectedBoardIdx = {};
       document.getElementById('gateView').style.display = 'none';
       document.getElementById('boardsView').style.display = 'block';
-      renderSwitcher();
-      renderBoard();
+      showBoardsList();
     })
     .catch(function(err){
       errEl.textContent = 'Request failed: ' + err.message;
@@ -341,34 +362,46 @@ function backToGate(){
   document.getElementById('gateView').style.display = 'block';
 }
 
-function renderSwitcher(){
-  var wrap = document.getElementById('boardSwitcher');
-  var multiRow = document.getElementById('multiSelectRow');
+// ---- All Boards list (seller's own boards only — no search/grouping needed) ----
+function renderBoardsListSeller(){
+  var wrap = document.getElementById('sellerBoardsListWrap');
   wrap.innerHTML = '';
-  if(myBoards.length <= 1){
-    multiRow.style.display = 'none';
-    return;
-  }
-  multiRow.style.display = 'flex';
   myBoards.forEach(function(b, i){
-    var p = document.createElement('div');
-    p.className = 'seller-pill' + (i===currentBoardIdx ? ' active' : '');
-    p.style.display = 'inline-flex';
-    p.style.alignItems = 'center';
-    p.style.gap = '6px';
-    var chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.className = 'board-select-chk';
-    chk.dataset.idx = i;
-    chk.onclick = function(e){ e.stopPropagation(); };
+    var row = document.createElement('div');
+    row.className = 'board-row';
+    row.onclick = function(e){
+      if(e.target.classList.contains('board-select-chk')) return;
+      viewBoard(i);
+    };
+    row.innerHTML =
+      '<input type="checkbox" class="board-select-chk" data-idx="'+i+'" '+(selectedBoardIdx[i] ? 'checked' : '')+'>'+
+      '<div class="board-row-main">'+
+        '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span></div>'+
+        '<div class="board-row-sub">'+fmtPrice(b.stats.pricePerSpot)+' / spot</div>'+
+      '</div>'+
+      '<div class="board-row-stats">'+
+        '<div>Spots<b>'+b.stats.totalSlots+'</b></div>'+
+        '<div>Max Money<b>'+fmt(b.stats.maxMoney)+'</b></div>'+
+        '<div>Hit/Non-hit<b>'+b.stats.hitCount+' / '+b.stats.nonHitCount+'</b></div>'+
+      '</div>';
+    var chk = row.querySelector('.board-select-chk');
     chk.onchange = function(){ onBoardCheckChange(i, chk.checked); };
-    p.appendChild(chk);
-    var label = document.createElement('span');
-    label.innerHTML = '<span class="dot"></span>'+b.boardName;
-    label.onclick = function(){ currentBoardIdx = i; renderSwitcher(); renderBoard(); };
-    p.appendChild(label);
-    wrap.appendChild(p);
+    wrap.appendChild(row);
   });
+  updateSelectAllCheckboxState();
+}
+
+function showBoardsList(){
+  document.getElementById('boardDetailSubView').style.display = 'none';
+  document.getElementById('boardsListSubView').style.display = 'block';
+  renderBoardsListSeller();
+}
+
+function viewBoard(i){
+  currentBoardIdx = i;
+  document.getElementById('boardsListSubView').style.display = 'none';
+  document.getElementById('boardDetailSubView').style.display = 'block';
+  renderBoard();
 }
 
 function renderBoard(){
