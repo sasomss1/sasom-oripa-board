@@ -1084,13 +1084,34 @@ function pickColor(hex, nameTh, nameEn){
 function buildSellerOptions(){
   var wrap = document.getElementById('sellerOptionList');
   wrap.innerHTML = '';
-  sellerEmails.forEach(function(email){
+  sellerEmails.forEach(function(email, i){
     var d = document.createElement('div');
     d.className = 'pick-option';
-    d.onclick = function(){ pickSeller(email); };
-    d.innerHTML = '<span class="swatch" style="background:var(--gray-bg); display:flex; align-items:center; justify-content:center; font-size:14px;">✉️</span><span class="name">'+email+'</span>';
+    d.style.justifyContent = 'space-between';
+    var left = document.createElement('div');
+    left.style.display = 'flex';
+    left.style.alignItems = 'center';
+    left.style.gap = '14px';
+    left.style.cursor = 'pointer';
+    left.style.flex = '1';
+    left.style.minWidth = '0';
+    left.innerHTML = '<span class="swatch" style="background:var(--gray-bg); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">✉️</span><span class="name" style="overflow:hidden; text-overflow:ellipsis;">'+email+'</span>';
+    left.onclick = function(){ pickSeller(email); };
+    var del = document.createElement('span');
+    del.textContent = '×';
+    del.style.cssText = 'color:#B5B5B5; font-size:18px; cursor:pointer; padding:4px 8px; flex-shrink:0;';
+    del.onclick = function(e){ e.stopPropagation(); removeSellerEmail(i); };
+    d.appendChild(left);
+    d.appendChild(del);
     wrap.appendChild(d);
   });
+}
+
+function removeSellerEmail(i){
+  var email = sellerEmails[i];
+  if(!confirm('Remove "'+email+'" from the seller list? (This does not delete any boards already saved for this email.)')) return;
+  sellerEmails.splice(i, 1);
+  buildSellerOptions();
 }
 function pickSeller(email){
   currentSellerEmail = email;
