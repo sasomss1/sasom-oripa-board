@@ -49,6 +49,12 @@
   .card .desc{font-size:13px; color:var(--sub); margin:0 0 22px;}
   .card-head-row{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px;}
   .pricing-toggle-wrap{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .switch{position:relative; display:inline-block; width:40px; height:22px; cursor:pointer; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0; position:absolute;}
+  .switch-track{position:absolute; inset:0; background:#D8D8D8; border-radius:999px; transition:background .15s;}
+  .switch-thumb{position:absolute; top:2px; left:2px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .switch input:checked + .switch-track{background:var(--dark);}
+  .switch input:checked + .switch-track .switch-thumb{transform:translateX(18px);}
   .pricing-toggle-wrap .toggle-pill .opt.on.active{background:#2E7D32;}
   .pricing-toggle-wrap .toggle-pill .opt.off.active{background:#C0392B;}
   .card-head-row h2{margin-bottom:4px;}
@@ -336,10 +342,10 @@
       <h2><span data-th>ราคาและการคำนวณ</span><span data-en>Pricing & Calculation</span></h2>
       <div class="pricing-toggle-wrap">
         <span class="hint"><span data-th>แสดงให้ Seller เห็น</span><span data-en>Show to Seller</span></span>
-        <div class="toggle-pill" id="pricingToggle" onclick="setPricingToSeller(!showPricingToSeller)">
-          <div class="opt off"><span data-th>ปิด</span><span data-en>Off</span></div>
-          <div class="opt on active"><span data-th>เปิด</span><span data-en>On</span></div>
-        </div>
+        <label class="switch">
+          <input type="checkbox" id="pricingToggleInput" checked onchange="setPricingToSeller(this.checked)">
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+        </label>
       </div>
     </div>
 
@@ -479,6 +485,7 @@
   <div class="sp-nav-row">
     <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards'"><span data-th>กลับ</span><span data-en>Back</span></button>
     <div class="sp-nav-actions">
+      <button class="change-btn" onclick="exportCurrentBoardCSV()"><span data-th>ส่งออก CSV</span><span data-en>Export CSV</span></button>
       <button class="change-btn" onclick="editCurrentBoard()"><span data-th>แก้ไข</span><span data-en>Edit</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
     </div>
@@ -512,6 +519,8 @@
   <div class="modal-head">
     <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
     <div class="head-right">
+      <button class="change-btn" onclick="exportSelectedBoardsCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
+      <button class="change-btn" onclick="exportAllBoardsCSV()"><span data-th>ส่งออกทั้งหมด</span><span data-en>Export All</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -530,6 +539,12 @@
       <div class="opt none active" onclick="setGroupBy('none')"><span data-th>ไม่จัดกลุ่ม</span><span data-en>No grouping</span></div>
       <div class="opt seller" onclick="setGroupBy('seller')"><span data-th>จัดตาม Seller</span><span data-en>Group by seller</span></div>
     </div>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+    <input type="checkbox" id="selectAllBoards" onchange="toggleSelectAllBoards(this.checked)">
+    <label for="selectAllBoards" style="font-size:13px; color:var(--sub); cursor:pointer;"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></label>
+    <span id="selectedCountLabel" style="font-size:12.5px; color:var(--sub);"></span>
   </div>
 
   <div id="boardsListWrap"></div>
@@ -717,6 +732,90 @@ var GRADE_SETS = {
 function fmt(n){ return '฿' + Math.round(n).toLocaleString('en-US'); }
 function fmtPrice(n){ return n ? fmt(n) : '—'; }
 
+// ============== CSV EXPORT ==============
+function csvEscape(val){
+  var s = (val === null || val === undefined) ? '' : String(val);
+  if(/[",\n]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function rowsToCSV(rows){
+  return rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
+}
+function downloadCSV(filename, rows){
+  var csv = rowsToCSV(rows);
+  var blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function boardToCSVRows(entry){
+  var rows = [];
+  rows.push(['Board Name', entry.boardName]);
+  rows.push(['Seller Email', entry.sellerEmail]);
+  rows.push(['Status', entry.status || 'PREPARE']);
+  rows.push(['Price / Spot', entry.stats.pricePerSpot]);
+  rows.push(['Total Spots', entry.stats.totalSlots]);
+  rows.push(['Max Money', entry.stats.maxMoney]);
+  rows.push(['Total Cost', entry.stats.totalCost]);
+  rows.push(['Profit if Sold Out', entry.stats.profit]);
+  rows.push([]);
+
+  rows.push(['Slot', 'Type', 'Product Name', 'SKU', 'Condition', 'Price', 'Qty']);
+  var slotNo = 1;
+  (entry.entriesSnapshot||[]).forEach(function(e){
+    var start = slotNo; slotNo += e.qty; var end = slotNo - 1;
+    var slotLabel = e.qty === 1 ? padSlot(start) : (padSlot(start)+' - '+padSlot(end));
+    rows.push([slotLabel, e.nonHit ? 'Non-hit' : 'Hit', e.label, e.sku||'', e.condition||'', e.price||'', e.qty]);
+  });
+  if(entry.lastOneSnapshot){
+    rows.push(['Last One', 'Last One', entry.lastOneSnapshot.name, '', '', entry.lastOneSnapshot.price||'', 1]);
+  }
+  rows.push([]);
+
+  rows.push(['Live Date', 'Note', 'Spots Sold', 'Sale Value', 'Fee %', 'Fee Amount', 'Payout', 'Payment Status']);
+  var pricePerSpot = entry.stats.pricePerSpot;
+  var feePct = (entry.sellerFeePct != null) ? entry.sellerFeePct : 5;
+  (entry.liveSessions||[]).forEach(function(s){
+    var soldQty = (s.sales||[]).reduce(function(sum,r){ return sum + (r.sold ? (r.qty||0) : 0); }, 0);
+    var saleValue = soldQty * pricePerSpot;
+    var feeAmount = saleValue * (feePct/100);
+    var payout = saleValue - feeAmount;
+    rows.push([s.date, s.note||'', soldQty, saleValue, feePct, feeAmount, payout, s.paymentStatus||'PENDING']);
+  });
+  return rows;
+}
+
+function exportCurrentBoardCSV(){
+  if(!currentPreviewEntry) return;
+  var rows = boardToCSVRows(currentPreviewEntry);
+  var safeName = (currentPreviewEntry.boardName||'board').replace(/[^a-z0-9]+/gi,'-');
+  downloadCSV(safeName + '.csv', rows);
+}
+
+function exportBoardsListCSV(list, filename){
+  var rows = [['Seller Email','Board Name','Status','Price / Spot','Total Spots','Max Money','Hit Count','Non-Hit Count','Created At']];
+  list.forEach(function(b){
+    rows.push([b.sellerEmail, b.boardName, b.status||'PREPARE', b.stats.pricePerSpot, b.stats.totalSlots, b.stats.maxMoney, b.stats.hitCount, b.stats.nonHitCount, b.createdAt ? formatDateDMY(b.createdAt.slice(0,10)) : '']);
+  });
+  downloadCSV(filename, rows);
+}
+
+function exportAllBoardsCSV(){
+  exportBoardsListCSV(savedBoards, 'all-boards.csv');
+}
+
+// If an image URL fails to load (broken link, or the source site blocks
+// hotlinking from other domains), swap in the placeholder box instead of
+// leaving a broken-image icon.
+function imgFallback(imgEl, placeholderClass){
+  var ph = document.createElement('div');
+  ph.className = placeholderClass;
+  imgEl.replaceWith(ph);
+}
+
 // ============== TIER TABLE (derived, read-only) ==============
 var uidCounter = 0;
 function genUid(){ uidCounter += 1; return 'u' + Date.now().toString(36) + uidCounter; }
@@ -763,7 +862,7 @@ function buildTierRows(){
 }
 
 function miniImgHtml(img){
-  return img ? '<img src="'+img+'">' : '<div class="mi-noimg"></div>';
+  return img ? '<img src="'+img+'" onerror="imgFallback(this,\'mi-noimg\')">' : '<div class="mi-noimg"></div>';
 }
 
 function padSlot(n){ return 'S-'+String(n).padStart(3,'0'); }
@@ -1064,7 +1163,10 @@ function renderFetchedPreview(warning){
   var box = document.getElementById('fetchedPreview');
   box.innerHTML =
     '<div style="margin-top:14px;">'+
-      (wizProduct.img ? '<img src="'+wizProduct.img+'" style="width:64px; height:64px; border-radius:9px; object-fit:cover; margin-bottom:12px;">' : '')+
+      (wizProduct.img ? '<img src="'+wizProduct.img+'" style="width:64px; height:64px; border-radius:9px; object-fit:cover; margin-bottom:12px;" onerror="this.style.display=\'none\'; document.getElementById(\'fetchImgWarn\').style.display=\'block\';">' : '')+
+      (wizProduct.img ? '<div id="fetchImgWarn" class="hint" style="display:none; color:#C0392B; margin-bottom:10px;">' +
+        '<span data-th>โหลดรูปไม่ได้ (ลิงก์อาจบล็อกการฝังจากเว็บอื่น) ลองใส่ลิงก์รูปอื่น</span>' +
+        '<span data-en>Image failed to load (the source may block hotlinking) — try a different image URL</span></div>' : '')+
       (warning ? '<p class="hint" style="margin:0 0 10px; color:#C0392B;">'+warning+'</p>' : '')+
       '<div class="field"><label><span data-th>ชื่อสินค้า</span><span data-en>Product Name</span></label><input type="text" id="fetchedName" value="'+(wizProduct.name||'').replace(/"/g,'&quot;')+'" oninput="wizProduct.name=this.value"></div>'+
       '<div class="field" style="margin-bottom:0;"><label>SKU</label><input type="text" id="fetchedSku" value="'+(wizProduct.sku||'').replace(/"/g,'&quot;')+'" oninput="wizProduct.sku=this.value"></div>'+
@@ -1135,7 +1237,7 @@ function backToTypeStep(){
 function renderProductMiniCard(targetId){
   var el = document.getElementById(targetId);
   el.innerHTML =
-    (wizProduct.img ? '<img src="'+wizProduct.img+'">' : '<div class="pmc-noimg"></div>')+
+    (wizProduct.img ? '<img src="'+wizProduct.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
     '<div><div class="pmc-name">'+wizProduct.name+'</div>'+(wizProduct.sku ? '<div class="pmc-sub">SKU · '+wizProduct.sku+'</div>' : '')+'</div>';
 }
 
@@ -1178,7 +1280,7 @@ function renderStep3ProductBox(){
   var el = document.getElementById('pmcBox2');
   var condLine = currentConditionLabel();
   el.innerHTML =
-    (wizProduct.img ? '<img src="'+wizProduct.img+'">' : '<div class="pmc-noimg"></div>')+
+    (wizProduct.img ? '<img src="'+wizProduct.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
     '<div><div class="pmc-name">'+wizProduct.name+'</div>'+
     (wizProduct.sku ? '<div class="pmc-sub">SKU · '+wizProduct.sku+'</div>' : '')+
     (condLine ? '<div class="pmc-sub">'+condLine+'</div>' : '')+
@@ -1230,9 +1332,7 @@ function setPricingToSeller(val){
 }
 
 function updatePricingToggleUI(){
-  var wrap = document.getElementById('pricingToggle');
-  wrap.querySelector('.opt.on').classList.toggle('active', showPricingToSeller);
-  wrap.querySelector('.opt.off').classList.toggle('active', !showPricingToSeller);
+  document.getElementById('pricingToggleInput').checked = showPricingToSeller;
 }
 
 // ============== LIVE HISTORY ==============
@@ -1376,7 +1476,7 @@ function openSalesModal(idx){
     row.dataset.uid = item.uid;
     row.dataset.qty = item.qty;
 
-    var thumb = item.img ? '<img src="'+item.img+'">' : '<div class="sr-noimg"></div>';
+    var thumb = item.img ? '<img src="'+item.img+'" onerror="imgFallback(this,\'sr-noimg\')">' : '<div class="sr-noimg"></div>';
     var subParts = [];
     if(item.sku) subParts.push('SKU · '+item.sku);
     if(item.condition) subParts.push(item.condition);
@@ -1636,7 +1736,7 @@ function showSellerPage(entry){
     item.className = 'item';
     item.innerHTML =
       '<div class="item-top">'+
-        (e.img ? '<img src="'+e.img+'">' : '')+
+        (e.img ? '<img src="'+e.img+'" onerror="this.style.display='none';">' : '')+
         '<span class="item-badge">'+rangeLabel+'</span>'+
         '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
         '<div class="item-price">'+fmt(e.price)+' × '+e.qty+'</div>'+
@@ -1671,10 +1771,13 @@ function setGroupBy(mode){
   renderBoardsList();
 }
 
+var selectedBoardIds = {};
+
 function buildBoardRow(b){
   var row = document.createElement('div');
   row.className = 'board-row';
   row.innerHTML =
+    '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
     '<div class="board-row-main">'+
       '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span></div>'+
       '<div class="board-row-sub">'+b.sellerEmail+(b.createdAt ? ' · '+formatDateDMY(b.createdAt.slice(0,10)) : '')+'</div>'+
@@ -1690,6 +1793,35 @@ function buildBoardRow(b){
       '<button class="ls-btn danger" onclick="deleteBoardConfirm(\''+b.boardId+'\')">Delete</button>'+
     '</div>';
   return row;
+}
+
+function onBoardCheckChange(boardId, checked){
+  if(checked) selectedBoardIds[boardId] = true;
+  else delete selectedBoardIds[boardId];
+  updateSelectedCountLabel();
+}
+
+function toggleSelectAllBoards(checked){
+  document.querySelectorAll('.board-select-chk').forEach(function(chk){
+    chk.checked = checked;
+    if(checked) selectedBoardIds[chk.dataset.id] = true;
+    else delete selectedBoardIds[chk.dataset.id];
+  });
+  updateSelectedCountLabel();
+}
+
+function updateSelectedCountLabel(){
+  var n = Object.keys(selectedBoardIds).length;
+  var lbl = document.getElementById('selectedCountLabel');
+  if(!lbl) return;
+  lbl.textContent = n ? ('(' + n + ' selected)') : '';
+}
+
+function exportSelectedBoardsCSV(){
+  var ids = Object.keys(selectedBoardIds);
+  if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
+  var selected = savedBoards.filter(function(b){ return selectedBoardIds[b.boardId]; });
+  exportBoardsListCSV(selected, 'selected-boards.csv');
 }
 
 function renderBoardsList(){
