@@ -241,6 +241,9 @@
   .status-badge.prepare{background:#FFF6DC; color:#6B5900;}
   .status-badge.on{background:#EAF7EA; color:#2E7D32;}
   .status-badge.off{background:#FBEAEA; color:#C0392B;}
+  .status-badge.profit{background:#EAF7EA; color:#2E7D32;}
+  .status-badge.loss{background:#FBEAEA; color:#C0392B;}
+  .status-badge.breakeven{background:var(--gray-bg); color:var(--sub);}
 
   .live-session{border:1px solid var(--gray-line); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
   .live-session-top{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
@@ -328,6 +331,7 @@
     <h1><span data-th>ขอสร้างบอร์ดใหม่</span><span data-en>Request New Board</span></h1>
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=summary&t='+Date.now()"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -558,6 +562,7 @@
   <div class="modal-head">
     <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
     <div class="head-right">
+      <button class="change-btn" onclick="location.href='admin.html?view=summary&t='+Date.now()"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
@@ -586,6 +591,38 @@
   </div>
 
   <div id="boardsListWrap"></div>
+</div>
+
+<!-- SUMMARY VIEW (opened via admin.html?view=summary) — Admin-only profit/loss overview -->
+<div class="modal" id="summaryView" style="display:none;">
+  <div class="modal-head">
+    <h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1>
+    <div class="head-right">
+      <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
+        <div class="opt th">TH</div>
+        <div class="opt en active">EN</div>
+      </div>
+    </div>
+  </div>
+  <p class="hint" style="margin:-8px 0 18px;"><span data-th>รวมเฉพาะบอร์ดที่ตั้งราคาต่อช่องไว้แล้ว — คำนวณจากยอดขายจริงที่บันทึกใน Live History แต่ละบอร์ด</span><span data-en>Only boards with a price per spot set are included — calculated from actual sales recorded in each board's Live History</span></p>
+
+  <div class="boards-filter-row">
+    <div style="flex:1;"></div>
+    <div class="toggle-pill" id="summaryGroupByToggle" style="align-self:flex-end;">
+      <div class="opt none active" onclick="setSummaryGroupBy('none')"><span data-th>ไม่จัดกลุ่ม</span><span data-en>No grouping</span></div>
+      <div class="opt seller" onclick="setSummaryGroupBy('seller')"><span data-th>จัดตาม Seller</span><span data-en>Group by seller</span></div>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom:20px;">
+    <div class="stat-card"><div class="l"><span data-th>บอร์ดกำไร</span><span data-en>Profit boards</span></div><div class="v" id="sumCountProfit">0</div></div>
+    <div class="stat-card"><div class="l"><span data-th>บอร์ดขาดทุน</span><span data-en>Loss boards</span></div><div class="v" id="sumCountLoss">0</div></div>
+    <div class="stat-card"><div class="l"><span data-th>บอร์ดคุ้มทุน</span><span data-en>Break-even boards</span></div><div class="v" id="sumCountBreakEven">0</div></div>
+    <div class="stat-card accent"><div class="l"><span data-th>กำไรรวมทั้งหมด</span><span data-en>Total net profit</span></div><div class="v" id="sumTotalProfit">฿0</div></div>
+  </div>
+
+  <div id="summaryListWrap"></div>
 </div>
 
 <!-- COLOR PICKER -->
@@ -860,29 +897,21 @@ function buildTierRows(){
   var entries = getCombinedEntries();
   var totalSlots = +document.getElementById('totalSlots').value || 0;
 
-  TIER_LADDER.forEach(function(tierName, i){
-    var e = entries[i];
+  // Only render a row per tier that actually has a product — no wall of
+  // empty "—" placeholder rows for tiers nothing has been added to yet.
+  entries.forEach(function(e, i){
+    var tierName = TIER_LADDER[i] || ('#'+(i+1));
+    var rowCost = e.price * e.qty;
+    var rowAvg = totalSlots > 0 ? rowCost / totalSlots : 0;
     var row = document.createElement('div');
-    row.className = 'tier-row' + (!e ? ' zero' : '');
-    if(e){
-      var rowCost = e.price * e.qty;
-      var rowAvg = totalSlots > 0 ? rowCost / totalSlots : 0;
-      row.innerHTML =
-        '<span class="tier-label">'+tierName+'</span>'+
-        '<span class="tier-item-name">'+e.label+(e.condition ? ' · '+e.condition : '')+(e.nonHit ? '<span class="nh-tag" data-th>ไม่ฮิต</span>' : '')+(e.nonHit ? '<span class="nh-tag" data-en>N/H</span>' : '')+'</span>'+
-        '<span class="tier-price">'+fmt(e.price)+'</span>'+
-        '<span class="tier-qty">'+e.qty+'</span>'+
-        '<span class="tier-cost">'+fmt(rowCost)+'</span>'+
-        '<span class="tier-avg">'+fmt(rowAvg)+'</span>';
-    } else {
-      row.innerHTML =
-        '<span class="tier-label">'+tierName+'</span>'+
-        '<span class="tier-item-name">—</span>'+
-        '<span class="tier-price">—</span>'+
-        '<span class="tier-qty">0</span>'+
-        '<span class="tier-cost">฿0</span>'+
-        '<span class="tier-avg">฿0</span>';
-    }
+    row.className = 'tier-row';
+    row.innerHTML =
+      '<span class="tier-label">'+tierName+'</span>'+
+      '<span class="tier-item-name">'+e.label+(e.condition ? ' · '+e.condition : '')+(e.nonHit ? '<span class="nh-tag" data-th>ไม่ฮิต</span>' : '')+(e.nonHit ? '<span class="nh-tag" data-en>N/H</span>' : '')+'</span>'+
+      '<span class="tier-price">'+fmt(e.price)+'</span>'+
+      '<span class="tier-qty">'+e.qty+'</span>'+
+      '<span class="tier-cost">'+fmt(rowCost)+'</span>'+
+      '<span class="tier-avg">'+fmt(rowAvg)+'</span>';
     wrap.appendChild(row);
   });
 }
@@ -1813,6 +1842,7 @@ function showSellerPage(entry){
 function showForm(){
   document.getElementById('sellerPageView').style.display = 'none';
   document.getElementById('boardsListView').style.display = 'none';
+  document.getElementById('summaryView').style.display = 'none';
   document.getElementById('formView').style.display = 'block';
 }
 
@@ -1947,6 +1977,122 @@ function renderBoardsList(){
   updateSelectAllCheckboxState();
 }
 
+// ============== SUMMARY (Profit / Loss overview) ==============
+var summaryGroupBy = 'none'; // 'none' | 'seller'
+
+function setSummaryGroupBy(mode){
+  summaryGroupBy = mode;
+  document.querySelectorAll('#summaryGroupByToggle .opt').forEach(function(o){ o.classList.remove('active'); });
+  document.querySelector('#summaryGroupByToggle .opt.'+mode).classList.add('active');
+  renderSummaryList();
+}
+
+// Realized (actual) financials from sales recorded in Live History — not the
+// "if fully sold out" theoretical numbers shown elsewhere in the app.
+function computeBoardFinancials(b){
+  var pricePerSpot = b.stats.pricePerSpot;
+
+  var priceByLabel = {};
+  (b.entriesSnapshot||[]).forEach(function(e){ priceByLabel[e.label] = e.price; });
+
+  var soldSpots = 0, soldCost = 0;
+  (b.liveSessions||[]).forEach(function(s){
+    if(s.paymentStatus === 'CANCEL') return;
+    (s.sales||[]).forEach(function(r){
+      if(!r.sold) return;
+      soldSpots += (r.qty||0);
+      soldCost += (priceByLabel[r.label] || 0) * (r.qty||0);
+    });
+  });
+
+  var soldGMV = soldSpots * pricePerSpot;
+  var profit = soldGMV - soldCost;
+  var status = (soldSpots === 0 || profit === 0) ? 'Break-even' : (profit > 0 ? 'Profit' : 'Loss');
+
+  return {
+    pricePerSpot: pricePerSpot,
+    totalSlots: b.stats.totalSlots,
+    maxMoney: b.stats.maxMoney,
+    totalCost: b.stats.totalCost,
+    soldSpots: soldSpots,
+    soldGMV: soldGMV,
+    soldCost: soldCost,
+    profit: profit,
+    status: status
+  };
+}
+
+function buildSummaryRow(b, fin){
+  var row = document.createElement('div');
+  row.className = 'board-row';
+  var statusClass = fin.status === 'Profit' ? 'profit' : (fin.status === 'Loss' ? 'loss' : 'breakeven');
+  row.innerHTML =
+    '<div class="board-row-main">'+
+      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+statusClass+'">'+fin.status+'</span></div>'+
+      '<div class="board-row-sub">'+b.sellerEmail+'</div>'+
+    '</div>'+
+    '<div class="board-row-stats">'+
+      '<div>Price/spot<b>'+fmt(fin.pricePerSpot)+'</b></div>'+
+      '<div>Sold<b>'+fin.soldSpots+' / '+fin.totalSlots+'</b></div>'+
+      '<div>Sold GMV<b>'+fmt(fin.soldGMV)+'</b></div>'+
+      '<div>Sold Cost<b>'+fmt(fin.soldCost)+'</b></div>'+
+      '<div>Profit<b style="color:'+(fin.profit>0?'#2E7D32':(fin.profit<0?'#C0392B':'inherit'))+';">'+fmt(fin.profit)+'</b></div>'+
+    '</div>'+
+    '<div class="board-row-actions">'+
+      '<button class="ls-btn" onclick="editBoard(\''+b.boardId+'\')">Edit</button>'+
+    '</div>';
+  return row;
+}
+
+function renderSummaryList(){
+  var wrap = document.getElementById('summaryListWrap');
+  wrap.innerHTML = '';
+
+  // Only boards with a price per spot set — an unpriced board can't be
+  // evaluated as profit/loss/break-even.
+  var priced = savedBoards.filter(function(b){ return b.stats && b.stats.pricePerSpot > 0; });
+
+  var countProfit = 0, countLoss = 0, countBreakEven = 0, totalProfit = 0;
+  var withFin = priced.map(function(b){
+    var fin = computeBoardFinancials(b);
+    if(fin.status === 'Profit') countProfit++;
+    else if(fin.status === 'Loss') countLoss++;
+    else countBreakEven++;
+    totalProfit += fin.profit;
+    return {board:b, fin:fin};
+  });
+
+  document.getElementById('sumCountProfit').textContent = countProfit;
+  document.getElementById('sumCountLoss').textContent = countLoss;
+  document.getElementById('sumCountBreakEven').textContent = countBreakEven;
+  document.getElementById('sumTotalProfit').textContent = fmt(totalProfit);
+
+  if(!withFin.length){
+    wrap.innerHTML = '<p class="hint">No priced boards yet.</p>';
+    return;
+  }
+
+  if(summaryGroupBy === 'seller'){
+    var groups = {};
+    var order = [];
+    withFin.forEach(function(item){
+      var email = item.board.sellerEmail;
+      if(!groups[email]){ groups[email] = []; order.push(email); }
+      groups[email].push(item);
+    });
+    order.forEach(function(email){
+      var groupProfit = groups[email].reduce(function(sum,item){ return sum + item.fin.profit; }, 0);
+      var header = document.createElement('div');
+      header.className = 'board-group-header';
+      header.textContent = email + ' (' + groups[email].length + ' boards · net ' + fmt(groupProfit) + ')';
+      wrap.appendChild(header);
+      groups[email].forEach(function(item){ wrap.appendChild(buildSummaryRow(item.board, item.fin)); });
+    });
+  } else {
+    withFin.forEach(function(item){ wrap.appendChild(buildSummaryRow(item.board, item.fin)); });
+  }
+}
+
 function editBoard(boardId){
   location.href = 'admin.html?edit=' + encodeURIComponent(boardId) + '&t=' + Date.now();
 }
@@ -2066,10 +2212,18 @@ if(viewParam === 'boards'){
   document.getElementById('sellerPageView').style.display = 'none';
   document.getElementById('boardsListView').style.display = 'block';
 }
+if(viewParam === 'summary'){
+  document.getElementById('formView').style.display = 'none';
+  document.getElementById('sellerPageView').style.display = 'none';
+  document.getElementById('summaryView').style.display = 'block';
+}
 
 fetchAllBoardsFromServer().then(function(){
   if(viewParam === 'boards'){
     renderBoardsList();
+  }
+  if(viewParam === 'summary'){
+    renderSummaryList();
   }
   if(editParam){
     var match = savedBoards.find(function(b){ return b.boardId === editParam; });
