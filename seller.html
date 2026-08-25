@@ -100,6 +100,22 @@
   .lp-box.accent .lp-value{color:var(--accent);}
   .sold-item-row{display:flex; justify-content:space-between; font-size:12.5px; padding:4px 0; border-top:1px solid var(--gray-line);}
   .sold-item-row:first-child{border-top:none;}
+
+  /* ===== Mobile (iPhone etc.) — additive only, desktop styles above untouched ===== */
+  @media (max-width: 640px){
+    body{ padding:10px; }
+    .modal{ padding:22px 16px; border-radius:16px; max-width:100%; }
+    .card{ padding:18px 16px; }
+    .modal-head{ flex-wrap:wrap; gap:12px; }
+    .modal-head h1{ font-size:19px; }
+    .top-row{ flex-direction:column; }
+    .summary-counts{ flex-direction:column; }
+    .stat-grid{ grid-template-columns:repeat(2,1fr); }
+    .live-pay-grid{ grid-template-columns:1fr; }
+    .item-top{ flex-wrap:wrap; }
+    .item-badges{ max-width:100%; }
+    .live-session-top-row{ flex-wrap:wrap; gap:6px; }
+  }
 </style>
 </head>
 <body>
