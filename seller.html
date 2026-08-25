@@ -125,7 +125,10 @@
 
   <!-- BOARD LIST + DETAIL VIEW -->
   <div id="boardsView" style="display:none;">
-    <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+      <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
+      <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportBoardCSV()"><span data-th>ส่งออก CSV</span><span data-en>Export CSV</span></button>
+    </div>
 
     <div id="boardSwitcher" style="margin-bottom:16px;"></div>
 
@@ -149,6 +152,65 @@ function formatDateDMY(iso){
   return parts[2] + '/' + parts[1] + '/' + parts[0];
 }
 function apiConfigured(){ return API_URL && API_URL.indexOf('http') === 0; }
+function padSlot(n){ return 'S-'+String(n).padStart(3,'0'); }
+
+// ============== CSV EXPORT ==============
+function csvEscape(val){
+  var s = (val === null || val === undefined) ? '' : String(val);
+  if(/[",\n]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+function rowsToCSV(rows){
+  return rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
+}
+function downloadCSV(filename, rows){
+  var csv = rowsToCSV(rows);
+  var blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportBoardCSV(){
+  var b = myBoards[currentBoardIdx];
+  if(!b) return;
+  var rows = [];
+  rows.push(['Board Name', b.boardName]);
+  rows.push(['Seller Email', b.sellerEmail]);
+  rows.push(['Status', b.status || 'PREPARE']);
+  rows.push(['Price / Spot', b.stats.pricePerSpot]);
+  rows.push(['Total Spots', b.stats.totalSlots]);
+  rows.push(['Max Money', b.stats.maxMoney]);
+  rows.push([]);
+
+  rows.push(['Slot', 'Type', 'Product Name', 'SKU', 'Condition', 'Price', 'Qty']);
+  var slotNo = 1;
+  (b.entriesSnapshot||[]).forEach(function(e){
+    var start = slotNo; slotNo += e.qty; var end = slotNo - 1;
+    var slotLabel = e.qty === 1 ? padSlot(start) : (padSlot(start)+' - '+padSlot(end));
+    rows.push([slotLabel, e.nonHit ? 'Non-hit' : 'Hit', e.label, e.sku||'', e.condition||'', e.price||'', e.qty]);
+  });
+  if(b.lastOneSnapshot){
+    rows.push(['Last One', 'Last One', b.lastOneSnapshot.name, '', '', b.lastOneSnapshot.price||'', 1]);
+  }
+  rows.push([]);
+
+  rows.push(['Live Date', 'Note', 'Spots Sold', 'Sale Value', 'Fee %', 'Fee Amount', 'Payout', 'Payment Status']);
+  var pricePerSpot = b.stats.pricePerSpot;
+  var feePct = (b.sellerFeePct != null) ? b.sellerFeePct : 5;
+  (b.liveSessions||[]).forEach(function(s){
+    var soldQty = (s.sales||[]).reduce(function(sum,r){ return sum + (r.sold ? (r.qty||0) : 0); }, 0);
+    var saleValue = soldQty * pricePerSpot;
+    var feeAmount = saleValue * (feePct/100);
+    var payout = saleValue - feeAmount;
+    rows.push([s.date, s.note||'', soldQty, saleValue, feePct, feeAmount, payout, s.paymentStatus||'PENDING']);
+  });
+
+  var safeName = (b.boardName||'board').replace(/[^a-z0-9]+/gi,'-');
+  downloadCSV(safeName + '.csv', rows);
+}
 
 function tryEnter(){
   var email = document.getElementById('emailInput').value.trim().toLowerCase();
@@ -249,7 +311,7 @@ function renderBoard(){
     var startSlot = slotNo; slotNo += e.qty; var endSlot = slotNo - 1;
     var rangeLabel = e.qty === 1 ? ('S-'+String(startSlot).padStart(3,'0')) : ('S-'+String(startSlot).padStart(3,'0')+' – S-'+String(endSlot).padStart(3,'0'));
     html += '<div class="item"><div class="item-top">'+
-      (e.img ? '<img src="'+e.img+'">' : '')+
+      (e.img ? '<img src="'+e.img+'" onerror="this.style.display='none';">' : '')+
       '<span class="item-badge">'+rangeLabel+'</span>'+
       '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
       '<div class="item-price">'+fmtPrice(e.price)+' × '+e.qty+'</div>'+
@@ -303,7 +365,7 @@ function renderBoard(){
           var badgeNums = r.slots ? r.slots : (slotMap[r.label] ? [slotMap[r.label].start] : []);
           var badgesHtml = badgeNums.map(function(n){ return '<span class="item-badge">S-'+String(n).padStart(3,'0')+'</span>'; }).join('');
           html += '<div class="item"><div class="item-top">'+
-            (entry.img ? '<img src="'+entry.img+'">' : '')+
+            (entry.img ? '<img src="'+entry.img+'" onerror="this.style.display='none';">' : '')+
             '<div class="item-badges">'+badgesHtml+'</div>'+
             '<div class="item-info"><div class="item-name">'+r.label+'</div><div class="item-sub">'+(entry.condition||'')+'</div></div>'+
             '<div class="item-price">'+fmtPrice(entry.price)+' × '+r.qty+'</div>'+
