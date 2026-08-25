@@ -523,13 +523,7 @@
   <div class="sp-nav-row">
     <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>กลับ</span><span data-en>Back</span></button>
     <div class="sp-nav-actions">
-      <div class="export-dropdown">
-        <button class="change-btn" onclick="toggleExportMenu('exportMenuBoard')"><span data-th>ส่งออก</span><span data-en>Export</span> ▾</button>
-        <div class="export-menu" id="exportMenuBoard">
-          <div class="export-menu-item" onclick="exportCurrentBoard('csv')">CSV</div>
-          <div class="export-menu-item" onclick="exportCurrentBoard('sheet')">Google Sheet</div>
-        </div>
-      </div>
+      <button class="change-btn" onclick="exportCurrentBoard()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="change-btn" onclick="editCurrentBoard()"><span data-th>แก้ไข</span><span data-en>Edit</span></button>
       <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
     </div>
@@ -563,13 +557,7 @@
   <div class="modal-head">
     <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
     <div class="head-right">
-      <div class="export-dropdown">
-        <button class="change-btn" onclick="toggleExportMenu('exportMenuAllBoards')"><span data-th>ส่งออก</span><span data-en>Export</span> ▾</button>
-        <div class="export-menu" id="exportMenuAllBoards">
-          <div class="export-menu-item" onclick="exportSelectedBoards('csv')">CSV</div>
-          <div class="export-menu-item" onclick="exportSelectedBoards('sheet')">Google Sheet</div>
-        </div>
-      </div>
+      <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -800,35 +788,6 @@ function downloadCSV(filename, rows){
   URL.revokeObjectURL(url);
 }
 
-// ---- Export menu (dropdown) ----
-function toggleExportMenu(id){
-  document.querySelectorAll('.export-menu').forEach(function(m){ if(m.id !== id) m.classList.remove('open'); });
-  document.getElementById(id).classList.toggle('open');
-}
-document.addEventListener('click', function(e){
-  if(!e.target.closest('.export-dropdown')){
-    document.querySelectorAll('.export-menu').forEach(function(m){ m.classList.remove('open'); });
-  }
-});
-
-// Routes to either a CSV download or a real Google Sheet (created via the
-// Apps Script backend's createSheet action) depending on the chosen format.
-function exportRows(rows, filenameBase, format){
-  document.querySelectorAll('.export-menu').forEach(function(m){ m.classList.remove('open'); });
-  if(format === 'sheet'){
-    if(!apiConfigured()){ alert('API_URL not set — cannot create a Google Sheet'); return; }
-    fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'createSheet', title: filenameBase, rows: rows }) })
-      .then(function(r){ return r.json(); })
-      .then(function(res){
-        if(res.ok) window.open(res.url, '_blank');
-        else alert('Create sheet failed: ' + res.error);
-      })
-      .catch(function(err){ alert('Create sheet failed: ' + err.message); });
-  } else {
-    downloadCSV(filenameBase + '.csv', rows);
-  }
-}
-
 function boardToCSVRows(entry){
   var rows = [];
   rows.push(['Board Name', entry.boardName]);
@@ -866,19 +825,11 @@ function boardToCSVRows(entry){
   return rows;
 }
 
-function exportCurrentBoard(format){
+function exportCurrentBoard(){
   if(!currentPreviewEntry) return;
   var rows = boardToCSVRows(currentPreviewEntry);
   var safeName = (currentPreviewEntry.boardName||'board').replace(/[^a-z0-9]+/gi,'-');
-  exportRows(rows, safeName, format);
-}
-
-function exportBoardsListRows(list){
-  var rows = [['Seller Email','Board Name','Status','Price / Spot','Total Spots','Max Money','Hit Count','Non-Hit Count','Created At']];
-  list.forEach(function(b){
-    rows.push([b.sellerEmail, b.boardName, b.status||'PREPARE', b.stats.pricePerSpot, b.stats.totalSlots, b.stats.maxMoney, b.stats.hitCount, b.stats.nonHitCount, b.createdAt ? formatDateDMY(b.createdAt.slice(0,10)) : '']);
-  });
-  return rows;
+  downloadCSV(safeName + '.csv', rows);
 }
 
 // If an image URL fails to load (broken link, or the source site blocks
@@ -1933,11 +1884,21 @@ function updateSelectedCountLabel(){
   lbl.textContent = n ? ('(' + n + ' selected)') : '';
 }
 
-function exportSelectedBoards(format){
+function exportSelectedBoards(){
   var ids = Object.keys(selectedBoardIds);
   if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var selected = savedBoards.filter(function(b){ return selectedBoardIds[b.boardId]; });
-  exportRows(exportBoardsListRows(selected), 'selected-boards', format);
+
+  var combined = [];
+  selected.forEach(function(b, i){
+    if(i > 0){
+      combined.push([]);
+      combined.push(['=====================================']);
+      combined.push([]);
+    }
+    combined = combined.concat(boardToCSVRows(b));
+  });
+  downloadCSV('selected-boards.csv', combined);
 }
 
 function renderBoardsList(){
