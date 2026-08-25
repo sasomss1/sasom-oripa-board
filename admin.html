@@ -2,6 +2,9 @@
 <html lang="en" data-lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SASOM Oripa Board - Create</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -288,7 +291,7 @@
   <div class="modal-head">
     <h1><span data-th>ขอสร้างบอร์ดใหม่</span><span data-en>Request New Board</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="window.open('admin.html?view=boards','_blank')">📋 <span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -483,11 +486,11 @@
   </div>
 
   <div class="sp-nav-row">
-    <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards'"><span data-th>กลับ</span><span data-en>Back</span></button>
+    <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>กลับ</span><span data-en>Back</span></button>
     <div class="sp-nav-actions">
       <button class="change-btn" onclick="exportCurrentBoardCSV()"><span data-th>ส่งออก CSV</span><span data-en>Export CSV</span></button>
       <button class="change-btn" onclick="editCurrentBoard()"><span data-th>แก้ไข</span><span data-en>Edit</span></button>
-      <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
     </div>
   </div>
 
@@ -521,7 +524,7 @@
     <div class="head-right">
       <button class="change-btn" onclick="exportSelectedBoardsCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
       <button class="change-btn" onclick="exportAllBoardsCSV()"><span data-th>ส่งออกทั้งหมด</span><span data-en>Export All</span></button>
-      <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -1736,7 +1739,7 @@ function showSellerPage(entry){
     item.className = 'item';
     item.innerHTML =
       '<div class="item-top">'+
-        (e.img ? '<img src="'+e.img+'" onerror="this.style.display='none';">' : '')+
+        (e.img ? '<img src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
         '<span class="item-badge">'+rangeLabel+'</span>'+
         '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
         '<div class="item-price">'+fmt(e.price)+' × '+e.qty+'</div>'+
@@ -1868,7 +1871,7 @@ function renderBoardsList(){
 }
 
 function editBoard(boardId){
-  location.href = 'admin.html?edit=' + encodeURIComponent(boardId);
+  location.href = 'admin.html?edit=' + encodeURIComponent(boardId) + '&t=' + Date.now();
 }
 
 function deleteBoardConfirm(boardId){
