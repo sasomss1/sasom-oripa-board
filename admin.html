@@ -598,6 +598,8 @@
   <div class="modal-head">
     <h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1>
     <div class="head-right">
+      <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -1919,9 +1921,12 @@ function exportSelectedBoards(){
   var ids = Object.keys(selectedBoardIds);
   if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var selected = savedBoards.filter(function(b){ return selectedBoardIds[b.boardId]; });
+  exportBoardsFullDetail(selected, 'selected-boards.csv');
+}
 
+function exportBoardsFullDetail(list, filename){
   var combined = [];
-  selected.forEach(function(b, i){
+  list.forEach(function(b, i){
     if(i > 0){
       combined.push([]);
       combined.push(['=====================================']);
@@ -1929,7 +1934,12 @@ function exportSelectedBoards(){
     }
     combined = combined.concat(boardToCSVRows(b));
   });
-  downloadCSV('selected-boards.csv', combined);
+  downloadCSV(filename, combined);
+}
+
+function exportAllBoardsFullDetail(){
+  if(!savedBoards.length){ alert('No boards to export / ยังไม่มีบอร์ดให้ส่งออก'); return; }
+  exportBoardsFullDetail(savedBoards, 'all-boards-full-detail.csv');
 }
 
 function renderBoardsList(){
@@ -2061,6 +2071,7 @@ function renderSummaryList(){
     totalProfit += fin.profit;
     return {board:b, fin:fin};
   });
+  lastSummaryData = withFin;
 
   document.getElementById('sumCountProfit').textContent = countProfit;
   document.getElementById('sumCountLoss').textContent = countLoss;
@@ -2091,6 +2102,27 @@ function renderSummaryList(){
   } else {
     withFin.forEach(function(item){ wrap.appendChild(buildSummaryRow(item.board, item.fin)); });
   }
+}
+
+var lastSummaryData = [];
+
+function exportSummaryCSV(){
+  if(!lastSummaryData.length){ alert('No priced boards to export / ยังไม่มีบอร์ดที่ตั้งราคาให้ส่งออก'); return; }
+  var rows = [['No','Board','Seller Email','Status Board','Price/Spot','Total Spots','Sold','GMV','Sold GMV','Cost','Sold Cost','Profit','Status Profit']];
+  lastSummaryData.forEach(function(item, i){
+    var b = item.board, fin = item.fin;
+    rows.push([
+      i+1, b.boardName, b.sellerEmail, b.status||'PREPARE',
+      fin.pricePerSpot, fin.totalSlots, fin.soldSpots,
+      fin.maxMoney, fin.soldGMV, fin.totalCost, fin.soldCost, fin.profit, fin.status
+    ]);
+  });
+  rows.push([]);
+  rows.push(['Profit boards', document.getElementById('sumCountProfit').textContent]);
+  rows.push(['Loss boards', document.getElementById('sumCountLoss').textContent]);
+  rows.push(['Break-even boards', document.getElementById('sumCountBreakEven').textContent]);
+  rows.push(['Total net profit', document.getElementById('sumTotalProfit').textContent]);
+  downloadCSV('profit-loss-summary.csv', rows);
 }
 
 function editBoard(boardId){
