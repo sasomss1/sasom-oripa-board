@@ -127,7 +127,16 @@
   <div id="boardsView" style="display:none;">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
       <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
-      <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportBoardCSV()"><span data-th>ส่งออก CSV</span><span data-en>Export CSV</span></button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportSelectedBoardsCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
+        <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportAllBoardsCSV()"><span data-th>ส่งออกทั้งหมด</span><span data-en>Export All</span></button>
+      </div>
+    </div>
+
+    <div id="multiSelectRow" style="display:none; align-items:center; gap:8px; margin-bottom:12px;">
+      <input type="checkbox" id="selectAllBoards" onchange="toggleSelectAllBoards(this.checked)">
+      <label for="selectAllBoards" style="font-size:13px; color:var(--sub); cursor:pointer;"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></label>
+      <span id="selectedCountLabel" style="font-size:12.5px; color:var(--sub);"></span>
     </div>
 
     <div id="boardSwitcher" style="margin-bottom:16px;"></div>
@@ -173,9 +182,7 @@ function downloadCSV(filename, rows){
   URL.revokeObjectURL(url);
 }
 
-function exportBoardCSV(){
-  var b = myBoards[currentBoardIdx];
-  if(!b) return;
+function boardToCSVBlock(b){
   var rows = [];
   rows.push(['Board Name', b.boardName]);
   rows.push(['Seller Email', b.sellerEmail]);
@@ -207,9 +214,62 @@ function exportBoardCSV(){
     var payout = saleValue - feeAmount;
     rows.push([s.date, s.note||'', soldQty, saleValue, feePct, feeAmount, payout, s.paymentStatus||'PENDING']);
   });
+  return rows;
+}
 
+function exportBoardCSV(){
+  var b = myBoards[currentBoardIdx];
+  if(!b) return;
   var safeName = (b.boardName||'board').replace(/[^a-z0-9]+/gi,'-');
-  downloadCSV(safeName + '.csv', rows);
+  downloadCSV(safeName + '.csv', boardToCSVBlock(b));
+}
+
+var selectedBoardIdx = {};
+
+function onBoardCheckChange(idx, checked){
+  if(checked) selectedBoardIdx[idx] = true;
+  else delete selectedBoardIdx[idx];
+  updateSelectedCountLabel();
+}
+
+function toggleSelectAllBoards(checked){
+  document.querySelectorAll('.board-select-chk').forEach(function(chk){
+    chk.checked = checked;
+    var idx = +chk.dataset.idx;
+    if(checked) selectedBoardIdx[idx] = true;
+    else delete selectedBoardIdx[idx];
+  });
+  updateSelectedCountLabel();
+}
+
+function updateSelectedCountLabel(){
+  var n = Object.keys(selectedBoardIdx).length;
+  var lbl = document.getElementById('selectedCountLabel');
+  if(lbl) lbl.textContent = n ? ('(' + n + ' selected)') : '';
+}
+
+function exportBoardsMulti(list, filenamePrefix){
+  var combined = [];
+  list.forEach(function(b, i){
+    if(i > 0){
+      combined.push([]);
+      combined.push(['=====================================']);
+      combined.push([]);
+    }
+    combined = combined.concat(boardToCSVBlock(b));
+  });
+  downloadCSV(filenamePrefix + '.csv', combined);
+}
+
+function exportSelectedBoardsCSV(){
+  var idxs = Object.keys(selectedBoardIdx).map(Number);
+  if(!idxs.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
+  var list = idxs.map(function(i){ return myBoards[i]; });
+  exportBoardsMulti(list, 'selected-boards');
+}
+
+function exportAllBoardsCSV(){
+  exportBoardsMulti(myBoards, 'my-boards');
 }
 
 function tryEnter(){
@@ -261,13 +321,30 @@ function backToGate(){
 
 function renderSwitcher(){
   var wrap = document.getElementById('boardSwitcher');
+  var multiRow = document.getElementById('multiSelectRow');
   wrap.innerHTML = '';
-  if(myBoards.length <= 1) return;
+  if(myBoards.length <= 1){
+    multiRow.style.display = 'none';
+    return;
+  }
+  multiRow.style.display = 'flex';
   myBoards.forEach(function(b, i){
     var p = document.createElement('div');
     p.className = 'seller-pill' + (i===currentBoardIdx ? ' active' : '');
-    p.onclick = function(){ currentBoardIdx = i; renderSwitcher(); renderBoard(); };
-    p.innerHTML = '<span class="dot"></span>'+b.boardName;
+    p.style.display = 'inline-flex';
+    p.style.alignItems = 'center';
+    p.style.gap = '6px';
+    var chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.className = 'board-select-chk';
+    chk.dataset.idx = i;
+    chk.onclick = function(e){ e.stopPropagation(); };
+    chk.onchange = function(){ onBoardCheckChange(i, chk.checked); };
+    p.appendChild(chk);
+    var label = document.createElement('span');
+    label.innerHTML = '<span class="dot"></span>'+b.boardName;
+    label.onclick = function(){ currentBoardIdx = i; renderSwitcher(); renderBoard(); };
+    p.appendChild(label);
     wrap.appendChild(p);
   });
 }
