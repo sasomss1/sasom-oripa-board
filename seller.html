@@ -311,7 +311,7 @@ function renderBoard(){
     var startSlot = slotNo; slotNo += e.qty; var endSlot = slotNo - 1;
     var rangeLabel = e.qty === 1 ? ('S-'+String(startSlot).padStart(3,'0')) : ('S-'+String(startSlot).padStart(3,'0')+' – S-'+String(endSlot).padStart(3,'0'));
     html += '<div class="item"><div class="item-top">'+
-      (e.img ? '<img src="'+e.img+'" onerror="this.style.display='none';">' : '')+
+      (e.img ? '<img src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
       '<span class="item-badge">'+rangeLabel+'</span>'+
       '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
       '<div class="item-price">'+fmtPrice(e.price)+' × '+e.qty+'</div>'+
@@ -365,7 +365,7 @@ function renderBoard(){
           var badgeNums = r.slots ? r.slots : (slotMap[r.label] ? [slotMap[r.label].start] : []);
           var badgesHtml = badgeNums.map(function(n){ return '<span class="item-badge">S-'+String(n).padStart(3,'0')+'</span>'; }).join('');
           html += '<div class="item"><div class="item-top">'+
-            (entry.img ? '<img src="'+entry.img+'" onerror="this.style.display='none';">' : '')+
+            (entry.img ? '<img src="'+entry.img+'" onerror="this.style.display=\'none\';">' : '')+
             '<div class="item-badges">'+badgesHtml+'</div>'+
             '<div class="item-info"><div class="item-name">'+r.label+'</div><div class="item-sub">'+(entry.condition||'')+'</div></div>'+
             '<div class="item-price">'+fmtPrice(entry.price)+' × '+r.qty+'</div>'+
