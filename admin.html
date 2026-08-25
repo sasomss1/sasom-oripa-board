@@ -18,6 +18,7 @@
     --sub:#8A8A8A;
   }
   *{box-sizing:border-box;}
+  button{-webkit-appearance:none; appearance:none; color:inherit; font-family:inherit;}
   body{
     margin:0;
     font-family:'Inter','Noto Sans Thai',sans-serif;
@@ -61,7 +62,7 @@
   .pricing-toggle-wrap .toggle-pill .opt.on.active{background:#2E7D32;}
   .pricing-toggle-wrap .toggle-pill .opt.off.active{background:#C0392B;}
   .card-head-row h2{margin-bottom:4px;}
-  .change-btn{border:1px solid var(--gray-line); background:#fff; border-radius:9px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; flex-shrink:0;}
+  .change-btn{border:1px solid var(--gray-line); background:#fff; color:var(--dark); border-radius:9px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; flex-shrink:0;}
   .export-dropdown{position:relative; display:inline-block;}
   .export-menu{position:absolute; top:calc(100% + 6px); right:0; background:#fff; border:1px solid var(--gray-line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); min-width:150px; z-index:30; display:none; overflow:hidden;}
   .export-menu.open{display:block;}
@@ -91,8 +92,8 @@
 
   .summary{background:var(--dark); border-radius:16px; padding:18px 20px; margin:22px 0 0;}
   .summary-top{display:flex; justify-content:space-between; align-items:center;}
-  .summary-top span:first-child{color:#fff; font-size:14px;}
-  .summary-top span:last-child{color:var(--accent); font-weight:600; font-size:22px;}
+  .summary-top .summary-label{color:#fff; font-size:14px;}
+  .summary-top .summary-value{color:var(--accent); font-weight:600; font-size:22px;}
   .summary-counts{display:flex; gap:12px; margin-top:14px;}
   .count-box{flex:1; background:#fff; border-radius:12px; padding:12px 16px;}
   .count-box .label{font-size:12.5px; color:var(--sub); font-weight:400;}
@@ -258,7 +259,7 @@
   .lp-box.accent .lp-label{color:#C9C9C9;}
   .lp-value{font-size:14px; font-weight:600; color:var(--dark); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .lp-box.accent .lp-value{color:var(--accent);}
-  .ls-btn{border:1px solid var(--gray-line); background:#fff; border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:500; cursor:pointer;}
+  .ls-btn{border:1px solid var(--gray-line); background:#fff; color:var(--dark); border-radius:8px; padding:7px 12px; font-size:12.5px; font-weight:500; cursor:pointer;}
   .ls-btn.danger{color:#C0392B;}
   .sold-row{display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-top:1px solid var(--gray-line); font-size:13px;}
   .sold-row:first-child{border-top:none;}
@@ -542,7 +543,7 @@
   </div>
 
   <div class="summary">
-    <div class="summary-top"><span><span data-th>มูลค่าบอร์ดรวม</span><span data-en>Total board value</span></span><span id="spMaxMoney">฿0</span></div>
+    <div class="summary-top"><span class="summary-label"><span data-th>มูลค่าบอร์ดรวม</span><span data-en>Total board value</span></span><span class="summary-value" id="spMaxMoney">฿0</span></div>
     <div class="summary-counts">
       <div class="count-box"><div class="label"><span data-th>จำนวนฮิต</span><span data-en>Hit count</span></div><div class="value" id="spHitCount">0</div></div>
       <div class="count-box"><div class="label"><span data-th>จำนวนไม่ฮิต</span><span data-en>Non-hit count</span></div><div class="value" id="spNonHitCount">0</div></div>
