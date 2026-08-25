@@ -598,7 +598,8 @@
   <div class="modal-head">
     <h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
+      <button class="change-btn" onclick="exportAllBoardsFullDetail()"><span data-th>ส่งออกทุกบอร์ด (ละเอียด)</span><span data-en>Export All Boards</span></button>
       <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
@@ -622,6 +623,12 @@
     <div class="stat-card"><div class="l"><span data-th>บอร์ดขาดทุน</span><span data-en>Loss boards</span></div><div class="v" id="sumCountLoss">0</div></div>
     <div class="stat-card"><div class="l"><span data-th>บอร์ดคุ้มทุน</span><span data-en>Break-even boards</span></div><div class="v" id="sumCountBreakEven">0</div></div>
     <div class="stat-card accent"><div class="l"><span data-th>กำไรรวมทั้งหมด</span><span data-en>Total net profit</span></div><div class="v" id="sumTotalProfit">฿0</div></div>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-left:21px;">
+    <input type="checkbox" id="selectAllSummary" onchange="toggleSelectAllSummary(this.checked)">
+    <label for="selectAllSummary" style="font-size:13px; color:var(--sub); cursor:pointer;"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></label>
+    <span id="selectedSummaryCountLabel" style="font-size:12.5px; color:var(--sub);"></span>
   </div>
 
   <div id="summaryListWrap"></div>
@@ -2032,11 +2039,14 @@ function computeBoardFinancials(b){
   };
 }
 
+var selectedSummaryIds = {};
+
 function buildSummaryRow(b, fin){
   var row = document.createElement('div');
   row.className = 'board-row';
   var statusClass = fin.status === 'Profit' ? 'profit' : (fin.status === 'Loss' ? 'loss' : 'breakeven');
   row.innerHTML =
+    '<input type="checkbox" class="summary-select-chk" data-id="'+b.boardId+'" '+(selectedSummaryIds[b.boardId] ? 'checked' : '')+'>'+
     '<div class="board-row-main">'+
       '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+statusClass+'">'+fin.status+'</span></div>'+
       '<div class="board-row-sub">'+b.sellerEmail+'</div>'+
@@ -2051,7 +2061,38 @@ function buildSummaryRow(b, fin){
     '<div class="board-row-actions">'+
       '<button class="ls-btn" onclick="editBoard(\''+b.boardId+'\')">Edit</button>'+
     '</div>';
+  row.querySelector('.summary-select-chk').onchange = function(){ onSummaryCheckChange(b.boardId, this.checked); };
   return row;
+}
+
+function onSummaryCheckChange(boardId, checked){
+  if(checked) selectedSummaryIds[boardId] = true;
+  else delete selectedSummaryIds[boardId];
+  updateSelectedSummaryCountLabel();
+  updateSelectAllSummaryCheckboxState();
+}
+
+function toggleSelectAllSummary(checked){
+  document.querySelectorAll('.summary-select-chk').forEach(function(chk){
+    chk.checked = checked;
+    if(checked) selectedSummaryIds[chk.dataset.id] = true;
+    else delete selectedSummaryIds[chk.dataset.id];
+  });
+  updateSelectedSummaryCountLabel();
+}
+
+function updateSelectAllSummaryCheckboxState(){
+  var selectAll = document.getElementById('selectAllSummary');
+  if(!selectAll) return;
+  var chks = document.querySelectorAll('.summary-select-chk');
+  if(!chks.length){ selectAll.checked = false; return; }
+  selectAll.checked = Array.prototype.every.call(chks, function(c){ return c.checked; });
+}
+
+function updateSelectedSummaryCountLabel(){
+  var n = Object.keys(selectedSummaryIds).length;
+  var lbl = document.getElementById('selectedSummaryCountLabel');
+  if(lbl) lbl.textContent = n ? ('(' + n + ' selected)') : '';
 }
 
 function renderSummaryList(){
@@ -2102,26 +2143,36 @@ function renderSummaryList(){
   } else {
     withFin.forEach(function(item){ wrap.appendChild(buildSummaryRow(item.board, item.fin)); });
   }
+
+  updateSelectAllSummaryCheckboxState();
 }
 
 var lastSummaryData = [];
 
 function exportSummaryCSV(){
-  if(!lastSummaryData.length){ alert('No priced boards to export / ยังไม่มีบอร์ดที่ตั้งราคาให้ส่งออก'); return; }
+  var ids = Object.keys(selectedSummaryIds);
+  if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
+  var selected = lastSummaryData.filter(function(item){ return selectedSummaryIds[item.board.boardId]; });
+
   var rows = [['No','Board','Seller Email','Status Board','Price/Spot','Total Spots','Sold','GMV','Sold GMV','Cost','Sold Cost','Profit','Status Profit']];
-  lastSummaryData.forEach(function(item, i){
+  var totalProfitSelected = 0, countProfit = 0, countLoss = 0, countBreakEven = 0;
+  selected.forEach(function(item, i){
     var b = item.board, fin = item.fin;
     rows.push([
       i+1, b.boardName, b.sellerEmail, b.status||'PREPARE',
       fin.pricePerSpot, fin.totalSlots, fin.soldSpots,
       fin.maxMoney, fin.soldGMV, fin.totalCost, fin.soldCost, fin.profit, fin.status
     ]);
+    totalProfitSelected += fin.profit;
+    if(fin.status === 'Profit') countProfit++;
+    else if(fin.status === 'Loss') countLoss++;
+    else countBreakEven++;
   });
   rows.push([]);
-  rows.push(['Profit boards', document.getElementById('sumCountProfit').textContent]);
-  rows.push(['Loss boards', document.getElementById('sumCountLoss').textContent]);
-  rows.push(['Break-even boards', document.getElementById('sumCountBreakEven').textContent]);
-  rows.push(['Total net profit', document.getElementById('sumTotalProfit').textContent]);
+  rows.push(['Profit boards', countProfit]);
+  rows.push(['Loss boards', countLoss]);
+  rows.push(['Break-even boards', countBreakEven]);
+  rows.push(['Total net profit', totalProfitSelected]);
   downloadCSV('profit-loss-summary.csv', rows);
 }
 
