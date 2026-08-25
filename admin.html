@@ -62,6 +62,11 @@
   .pricing-toggle-wrap .toggle-pill .opt.off.active{background:#C0392B;}
   .card-head-row h2{margin-bottom:4px;}
   .change-btn{border:1px solid var(--gray-line); background:#fff; border-radius:9px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; flex-shrink:0;}
+  .export-dropdown{position:relative; display:inline-block;}
+  .export-menu{position:absolute; top:calc(100% + 6px); right:0; background:#fff; border:1px solid var(--gray-line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); min-width:150px; z-index:30; display:none; overflow:hidden;}
+  .export-menu.open{display:block;}
+  .export-menu-item{padding:10px 14px; font-size:13px; cursor:pointer; white-space:nowrap;}
+  .export-menu-item:hover{background:var(--gray-bg);}
   .change-btn:disabled{opacity:.4; cursor:not-allowed;}
 
   label{display:block; font-size:13.5px; font-weight:500; margin-bottom:8px;}
@@ -488,7 +493,13 @@
   <div class="sp-nav-row">
     <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>กลับ</span><span data-en>Back</span></button>
     <div class="sp-nav-actions">
-      <button class="change-btn" onclick="exportCurrentBoardCSV()"><span data-th>ส่งออก CSV</span><span data-en>Export CSV</span></button>
+      <div class="export-dropdown">
+        <button class="change-btn" onclick="toggleExportMenu('exportMenuBoard')"><span data-th>ส่งออก</span><span data-en>Export</span> ▾</button>
+        <div class="export-menu" id="exportMenuBoard">
+          <div class="export-menu-item" onclick="exportCurrentBoard('csv')">CSV</div>
+          <div class="export-menu-item" onclick="exportCurrentBoard('sheet')">Google Sheet</div>
+        </div>
+      </div>
       <button class="change-btn" onclick="editCurrentBoard()"><span data-th>แก้ไข</span><span data-en>Edit</span></button>
       <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
     </div>
@@ -522,8 +533,13 @@
   <div class="modal-head">
     <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="exportSelectedBoardsCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
-      <button class="change-btn" onclick="exportAllBoardsCSV()"><span data-th>ส่งออกทั้งหมด</span><span data-en>Export All</span></button>
+      <div class="export-dropdown">
+        <button class="change-btn" onclick="toggleExportMenu('exportMenuAllBoards')"><span data-th>ส่งออก</span><span data-en>Export</span> ▾</button>
+        <div class="export-menu" id="exportMenuAllBoards">
+          <div class="export-menu-item" onclick="exportSelectedBoards('csv')">CSV</div>
+          <div class="export-menu-item" onclick="exportSelectedBoards('sheet')">Google Sheet</div>
+        </div>
+      </div>
       <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -544,7 +560,7 @@
     </div>
   </div>
 
-  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-left:21px;">
     <input type="checkbox" id="selectAllBoards" onchange="toggleSelectAllBoards(this.checked)">
     <label for="selectAllBoards" style="font-size:13px; color:var(--sub); cursor:pointer;"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></label>
     <span id="selectedCountLabel" style="font-size:12.5px; color:var(--sub);"></span>
@@ -754,6 +770,35 @@ function downloadCSV(filename, rows){
   URL.revokeObjectURL(url);
 }
 
+// ---- Export menu (dropdown) ----
+function toggleExportMenu(id){
+  document.querySelectorAll('.export-menu').forEach(function(m){ if(m.id !== id) m.classList.remove('open'); });
+  document.getElementById(id).classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.export-dropdown')){
+    document.querySelectorAll('.export-menu').forEach(function(m){ m.classList.remove('open'); });
+  }
+});
+
+// Routes to either a CSV download or a real Google Sheet (created via the
+// Apps Script backend's createSheet action) depending on the chosen format.
+function exportRows(rows, filenameBase, format){
+  document.querySelectorAll('.export-menu').forEach(function(m){ m.classList.remove('open'); });
+  if(format === 'sheet'){
+    if(!apiConfigured()){ alert('API_URL not set — cannot create a Google Sheet'); return; }
+    fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'createSheet', title: filenameBase, rows: rows }) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if(res.ok) window.open(res.url, '_blank');
+        else alert('Create sheet failed: ' + res.error);
+      })
+      .catch(function(err){ alert('Create sheet failed: ' + err.message); });
+  } else {
+    downloadCSV(filenameBase + '.csv', rows);
+  }
+}
+
 function boardToCSVRows(entry){
   var rows = [];
   rows.push(['Board Name', entry.boardName]);
@@ -791,23 +836,19 @@ function boardToCSVRows(entry){
   return rows;
 }
 
-function exportCurrentBoardCSV(){
+function exportCurrentBoard(format){
   if(!currentPreviewEntry) return;
   var rows = boardToCSVRows(currentPreviewEntry);
   var safeName = (currentPreviewEntry.boardName||'board').replace(/[^a-z0-9]+/gi,'-');
-  downloadCSV(safeName + '.csv', rows);
+  exportRows(rows, safeName, format);
 }
 
-function exportBoardsListCSV(list, filename){
+function exportBoardsListRows(list){
   var rows = [['Seller Email','Board Name','Status','Price / Spot','Total Spots','Max Money','Hit Count','Non-Hit Count','Created At']];
   list.forEach(function(b){
     rows.push([b.sellerEmail, b.boardName, b.status||'PREPARE', b.stats.pricePerSpot, b.stats.totalSlots, b.stats.maxMoney, b.stats.hitCount, b.stats.nonHitCount, b.createdAt ? formatDateDMY(b.createdAt.slice(0,10)) : '']);
   });
-  downloadCSV(filename, rows);
-}
-
-function exportAllBoardsCSV(){
-  exportBoardsListCSV(savedBoards, 'all-boards.csv');
+  return rows;
 }
 
 // If an image URL fails to load (broken link, or the source site blocks
@@ -1802,6 +1843,7 @@ function onBoardCheckChange(boardId, checked){
   if(checked) selectedBoardIds[boardId] = true;
   else delete selectedBoardIds[boardId];
   updateSelectedCountLabel();
+  updateSelectAllCheckboxState();
 }
 
 function toggleSelectAllBoards(checked){
@@ -1813,6 +1855,14 @@ function toggleSelectAllBoards(checked){
   updateSelectedCountLabel();
 }
 
+function updateSelectAllCheckboxState(){
+  var selectAll = document.getElementById('selectAllBoards');
+  if(!selectAll) return;
+  var chks = document.querySelectorAll('.board-select-chk');
+  if(!chks.length){ selectAll.checked = false; return; }
+  selectAll.checked = Array.prototype.every.call(chks, function(c){ return c.checked; });
+}
+
 function updateSelectedCountLabel(){
   var n = Object.keys(selectedBoardIds).length;
   var lbl = document.getElementById('selectedCountLabel');
@@ -1820,11 +1870,11 @@ function updateSelectedCountLabel(){
   lbl.textContent = n ? ('(' + n + ' selected)') : '';
 }
 
-function exportSelectedBoardsCSV(){
+function exportSelectedBoards(format){
   var ids = Object.keys(selectedBoardIds);
   if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var selected = savedBoards.filter(function(b){ return selectedBoardIds[b.boardId]; });
-  exportBoardsListCSV(selected, 'selected-boards.csv');
+  exportRows(exportBoardsListRows(selected), 'selected-boards', format);
 }
 
 function renderBoardsList(){
@@ -1868,6 +1918,8 @@ function renderBoardsList(){
   } else {
     filtered.forEach(function(b){ wrap.appendChild(buildBoardRow(b)); });
   }
+
+  updateSelectAllCheckboxState();
 }
 
 function editBoard(boardId){
