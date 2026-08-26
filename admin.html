@@ -333,8 +333,8 @@
   <div class="modal-head">
     <h1><span data-th>ขอสร้างบอร์ดใหม่</span><span data-en>Request New Board</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="location.href='admin.html?view=boards"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
-      <button class="change-btn" onclick="location.href='admin.html?view=summary"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -344,7 +344,10 @@
   </div>
 
   <div class="card">
-    <h2><span data-th>ข้อมูลบอร์ด</span><span data-en>Board Info</span></h2>
+    <div class="card-head-row">
+      <h2><span data-th>ข้อมูลบอร์ด</span><span data-en>Board Info</span></h2>
+      <button class="change-btn" onclick="openCsvImportModal()"><span data-th>นำเข้าจาก CSV</span><span data-en>Import from CSV</span></button>
+    </div>
 
     <div class="field">
       <label><span data-th>ชื่อบอร์ด</span><span data-en>Board name</span></label>
@@ -529,11 +532,11 @@
   </div>
 
   <div class="sp-nav-row">
-    <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards"><span data-th>กลับ</span><span data-en>Back</span></button>
+    <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards'"><span data-th>กลับ</span><span data-en>Back</span></button>
     <div class="sp-nav-actions">
       <button class="change-btn" onclick="exportCurrentBoard()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="change-btn" onclick="editCurrentBoard()"><span data-th>แก้ไข</span><span data-en>Edit</span></button>
-      <button class="add-btn" onclick="location.href='admin.html">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
     </div>
   </div>
 
@@ -565,9 +568,9 @@
   <div class="modal-head">
     <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="location.href='admin.html?view=summary"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
-      <button class="add-btn" onclick="location.href='admin.html">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -603,8 +606,8 @@
     <div class="head-right">
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="change-btn" onclick="exportAllBoardsFullDetail()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
-      <button class="add-btn" onclick="location.href='admin.html">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
-      <button class="change-btn" onclick="location.href='admin.html?view=boards"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -778,6 +781,53 @@
     <div class="btn-row" style="margin-top:16px;">
       <div class="btn-cancel" onclick="closePicker('salesOverlay')"><span data-th>ยกเลิก</span><span data-en>Cancel</span></div>
       <div class="btn-confirm" onclick="confirmSalesRecord()"><span data-th>บันทึก</span><span data-en>Save</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- CSV IMPORT MODAL -->
+<div class="overlay" id="csvImportOverlay" onclick="if(event.target===this) closePicker('csvImportOverlay')">
+  <div class="pick-modal wide">
+    <div class="pick-modal-head">
+      <h3><span data-th>นำเข้าบอร์ดจาก CSV</span><span data-en>Import board from CSV</span></h3>
+      <span class="close-x" onclick="closePicker('csvImportOverlay')">✕</span>
+    </div>
+
+    <p class="hint" style="margin-bottom:16px;">
+      <span data-th>ใช้คอลัมน์: No, Product, SKU, Nick Name, Condition, Price, SASOM Link, IMG Link, Sold, Date — แถวที่ไม่มีชื่อ Product จะถูกรวมเป็น "ไม่ฮิต" อัตโนมัติ (นับจำนวนจากแถวที่ Condition+ราคาเหมือนกันติดกัน)</span>
+      <span data-en>Uses columns: No, Product, SKU, Nick Name, Condition, Price, SASOM Link, IMG Link, Sold, Date — rows with no Product name are auto-grouped as "non-hit" (counted from consecutive rows sharing the same Condition+Price)</span>
+    </p>
+
+    <div class="row2">
+      <div class="field">
+        <label><span data-th>ชื่อบอร์ด</span><span data-en>Board name</span></label>
+        <input type="text" id="csvBoardName" placeholder="">
+      </div>
+      <div class="field">
+        <label><span data-th>ราคาต่อช่อง</span><span data-en>Price per spot</span></label>
+        <div class="prefix-input"><span>฿</span><input type="number" id="csvPricePerSpot" placeholder=""></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label><span data-th>สถานะบอร์ด</span><span data-en>Board status</span></label>
+      <div class="status-tabs">
+        <div class="status-tab prepare active" data-status="PREPARE" onclick="setCsvStatus('PREPARE')">PREPARE</div>
+        <div class="status-tab on" data-status="ON" onclick="setCsvStatus('ON')">ON</div>
+        <div class="status-tab off" data-status="OFF" onclick="setCsvStatus('OFF')">OFF</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label><span data-th>ไฟล์ CSV</span><span data-en>CSV file</span></label>
+      <input type="file" id="csvFileInput" accept=".csv" onchange="onCsvFileChosen(event)">
+    </div>
+
+    <div id="csvPreviewBox"></div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <div class="btn-cancel" onclick="downloadCsvTemplate()"><span data-th>ดาวน์โหลดเทมเพลต</span><span data-en>Download template</span></div>
+      <div class="btn-confirm" id="csvImportConfirmBtn" onclick="confirmCsvImport()" style="opacity:.4; pointer-events:none;"><span data-th>นำเข้า</span><span data-en>Import</span></div>
     </div>
   </div>
 </div>
@@ -2304,6 +2354,230 @@ function loadBoardIntoForm(entry){
   recalc();
   renderLiveHistory();
   showForm();
+}
+
+// ============== CSV IMPORT ==============
+var csvStatus = 'PREPARE';
+var parsedCsvImport = null; // {hitItems, nonHitItems, liveSessions, hitCount, nonHitCount, sessionCount}
+
+function openCsvImportModal(){
+  document.getElementById('csvBoardName').value = document.getElementById('boardName').value || '';
+  document.getElementById('csvPricePerSpot').value = document.getElementById('pricePerSpot').value || '';
+  document.getElementById('csvFileInput').value = '';
+  document.getElementById('csvPreviewBox').innerHTML = '';
+  csvStatus = 'PREPARE';
+  document.querySelectorAll('#csvImportOverlay .status-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.status === 'PREPARE'); });
+  parsedCsvImport = null;
+  var btn = document.getElementById('csvImportConfirmBtn');
+  btn.style.opacity = '.4'; btn.style.pointerEvents = 'none';
+  openPicker('csvImportOverlay');
+}
+
+function setCsvStatus(status){
+  csvStatus = status;
+  document.querySelectorAll('#csvImportOverlay .status-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.status === status); });
+}
+
+// Minimal CSV parser: handles quoted fields with embedded commas/quotes/newlines.
+function parseCSV(text){
+  var rows = [];
+  var row = [];
+  var field = '';
+  var inQuotes = false;
+  for(var i = 0; i < text.length; i++){
+    var c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n'){ row.push(field); field=''; rows.push(row); row=[]; }
+      else if(c === '\r'){ /* skip, \n handles the break */ }
+      else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ''; }); });
+}
+
+function normalizeDate(str){
+  str = (str||'').trim();
+  if(!str) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  var d = new Date(str);
+  if(isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function isSoldValue(str){
+  str = (str||'').trim().toLowerCase();
+  return str === 'true' || str === 'yes' || str === '1';
+}
+
+function onCsvFileChosen(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var result = parseCsvImportData(e.target.result);
+      parsedCsvImport = result;
+      renderCsvPreview(result);
+      var btn = document.getElementById('csvImportConfirmBtn');
+      btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
+    } catch(err){
+      document.getElementById('csvPreviewBox').innerHTML = '<p class="hint" style="color:#C0392B;">Parse error: '+err.message+'</p>';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCsvImportData(text){
+  var table = parseCSV(text);
+  if(!table.length) throw new Error('Empty file');
+  var header = table[0].map(function(h){ return h.trim().toLowerCase(); });
+  function col(name){ return header.indexOf(name); }
+  var idx = {
+    product: col('product'), sku: col('sku'), nickname: col('nick name'),
+    condition: col('condition'), price: col('price'), sasomLink: col('sasom link'),
+    imgLink: col('img link'), sold: col('sold'), date: col('date')
+  };
+
+  var hitItems = [], nonHitItems = [];
+  var soldEvents = []; // {uid, isNonHit, date} — one per physical unit, used to build live sessions
+  var pendingGroup = null; // {key, entry, count, units:[{sold,date}]}
+
+  function flushGroup(){
+    if(!pendingGroup) return;
+    var uid = genUid();
+    nonHitItems.push({
+      uid: uid,
+      name: pendingGroup.entry.name,
+      sku: pendingGroup.entry.sku,
+      img: pendingGroup.entry.img,
+      condition: pendingGroup.entry.condition,
+      isRaw: pendingGroup.entry.condition === 'Raw',
+      price: pendingGroup.entry.price,
+      qty: pendingGroup.units.length
+    });
+    pendingGroup.units.forEach(function(u){
+      if(u.sold && u.date) soldEvents.push({uid: uid, isNonHit: true, date: u.date});
+    });
+    pendingGroup = null;
+  }
+
+  for(var r = 1; r < table.length; r++){
+    var row = table[r];
+    var get = function(i){ return i >= 0 && row[i] != null ? row[i].trim() : ''; };
+    var product = get(idx.product);
+    var sku = get(idx.sku);
+    var nickname = get(idx.nickname);
+    var condition = get(idx.condition);
+    var price = +get(idx.price).replace(/[^0-9.\-]/g,'') || 0;
+    var imgLink = get(idx.imgLink);
+    var sold = isSoldValue(get(idx.sold));
+    var date = normalizeDate(get(idx.date));
+
+    if(product){
+      flushGroup();
+      var name = nickname ? (product + ' (' + nickname + ')') : product;
+      var uid = genUid();
+      hitItems.push({uid:uid, name:name, sku:sku, img:imgLink, condition:condition, price:price});
+      if(sold && date) soldEvents.push({uid:uid, isNonHit:false, date:date});
+    } else {
+      var key = condition + '|' + price;
+      if(pendingGroup && pendingGroup.key !== key) flushGroup();
+      if(!pendingGroup){
+        pendingGroup = {key:key, entry:{name: nickname || condition || 'Non-hit item', sku:sku, img:imgLink, condition:condition, price:price}, units:[]};
+      }
+      pendingGroup.units.push({sold:sold, date:date});
+    }
+  }
+  flushGroup();
+
+  // Build absolute slot numbers in the same order the rest of the app uses (hits, then non-hits)
+  var slotOf = {}; // uid -> array of absolute slot numbers this uid occupies
+  var slotNo = 1;
+  hitItems.forEach(function(h){ slotOf[h.uid] = [slotNo]; slotNo++; });
+  nonHitItems.forEach(function(n){
+    var arr = [];
+    for(var k = 0; k < n.qty; k++){ arr.push(slotNo); slotNo++; }
+    slotOf[n.uid] = arr;
+  });
+
+  // Group sold events by date into live sessions
+  var byDate = {};
+  var nonHitSlotCursor = {}; // uid -> how many of its slots have been consumed by sold events so far, in row order
+  soldEvents.forEach(function(ev){
+    if(!byDate[ev.date]) byDate[ev.date] = {};
+    if(!byDate[ev.date][ev.uid]) byDate[ev.date][ev.uid] = 0;
+    byDate[ev.date][ev.uid]++;
+  });
+
+  var liveSessions = Object.keys(byDate).sort().map(function(date){
+    var sales = [];
+    Object.keys(byDate[date]).forEach(function(uid){
+      var qty = byDate[date][uid];
+      var label = (hitItems.find(function(h){ return h.uid===uid; }) || nonHitItems.find(function(n){ return n.uid===uid; }) || {}).name || '';
+      if(qty === 1 && (hitItems.find(function(h){ return h.uid===uid; }))){
+        sales.push({uid:uid, label:label, sold:true, qty:1});
+      } else {
+        var start = nonHitSlotCursor[uid] || 0;
+        var allSlots = slotOf[uid] || [];
+        var slots = allSlots.slice(start, start + qty);
+        nonHitSlotCursor[uid] = start + qty;
+        sales.push({uid:uid, label:label, sold:true, qty:qty, slots:slots});
+      }
+    });
+    return {id: Date.now() + Math.random(), date:date, note:'', sales:sales, paymentStatus:'PENDING'};
+  });
+
+  return {
+    hitItems: hitItems,
+    nonHitItems: nonHitItems,
+    liveSessions: liveSessions,
+    hitCount: hitItems.length,
+    nonHitCount: nonHitItems.reduce(function(sum,n){ return sum+n.qty; }, 0),
+    sessionCount: liveSessions.length
+  };
+}
+
+function renderCsvPreview(result){
+  var box = document.getElementById('csvPreviewBox');
+  box.innerHTML =
+    '<div class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-top:6px;">'+
+      '<div class="stat-card"><div class="l">Hit items</div><div class="v">'+result.hitCount+'</div></div>'+
+      '<div class="stat-card"><div class="l">Non-hit qty</div><div class="v">'+result.nonHitCount+'</div></div>'+
+      '<div class="stat-card"><div class="l">Live sessions found</div><div class="v">'+result.sessionCount+'</div></div>'+
+    '</div>';
+}
+
+function confirmCsvImport(){
+  if(!parsedCsvImport) return;
+  document.getElementById('boardName').value = document.getElementById('csvBoardName').value.trim();
+  document.getElementById('pricePerSpot').value = document.getElementById('csvPricePerSpot').value;
+  setBoardStatus(csvStatus);
+
+  hitItems = parsedCsvImport.hitItems;
+  nonHitItems = parsedCsvImport.nonHitItems;
+  liveSessions = parsedCsvImport.liveSessions;
+
+  recalc();
+  renderLiveHistory();
+  closePicker('csvImportOverlay');
+}
+
+function downloadCsvTemplate(){
+  var rows = [
+    ['No','Product','SKU','Nick Name','Condition','Price','SASOM Link','IMG Link','Sold','Date'],
+    ['1','Pokemon Pikachu PROMO [xyp 156/XY-P] XY "XY Promos" (JP)','XYP-156-XY-P-JP-XYP-156-7A3E0','','PSA 10','89000','','','FALSE',''],
+    ['2','','','','PSA 10 (Salt)','1600','','','TRUE','2026-08-20'],
+    ['3','','','','PSA 10 (Salt)','1600','','','FALSE','']
+  ];
+  downloadCSV('board-import-template.csv', rows);
 }
 
 // ============== LANGUAGE ==============
