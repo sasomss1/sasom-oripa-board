@@ -962,7 +962,7 @@ function genUid(){ uidCounter += 1; return 'u' + Date.now().toString(36) + uidCo
 function getCombinedEntries(){
   // Order is preserved exactly as arranged (drag-to-reorder), never re-sorted by price.
   // Hit items always occupy the earlier slot numbers, non-hit items fill in after.
-  var entries = hitItems.map(function(h){ return {uid:h.uid, label:h.name, sku:h.sku, img:h.img, condition:h.condition, price:h.price, qty:1, nonHit:false}; })
+  var entries = hitItems.map(function(h){ return {uid:h.uid, label:h.name, sku:h.sku, img:h.img, condition:h.condition, price:h.price, qty:h.qty||1, nonHit:false}; })
     .concat(nonHitItems.map(function(n){ return {uid:n.uid, label:n.name, sku:n.sku, img:n.img, condition:n.isRaw ? 'Raw' : n.condition, price:n.price, qty:n.qty, nonHit:true}; }));
   return entries;
 }
@@ -1015,7 +1015,8 @@ function renderMiniLists(){
   hitWrap.innerHTML = '';
   hitItems.forEach(function(item, i){
     var slot = slotMap[item.uid];
-    var slotBadge = slot ? padSlot(slot.start) : '';
+    var qty = item.qty || 1;
+    var slotBadge = slot ? (qty === 1 ? padSlot(slot.start) : padSlot(slot.start)+' – '+padSlot(slot.end)) : '';
     var d = document.createElement('div');
     d.className = 'mini-item';
     d.draggable = true;
@@ -1027,9 +1028,9 @@ function renderMiniLists(){
       (slotBadge ? '<span class="mi-slot">'+slotBadge+'</span>' : '')+
       '<div style="flex:1; min-width:0;">'+
         '<div class="mi-name">'+item.name+'</div>'+
-        '<div class="mi-sub">'+(item.sku ? 'SKU · '+item.sku+' · ' : '')+(item.condition||'')+'</div>'+
+        '<div class="mi-sub">'+(item.sku ? 'SKU · '+item.sku+' · ' : '')+(item.condition||'')+(qty>1 ? ' · ×'+qty : '')+'</div>'+
       '</div>'+
-      '<div class="mi-price">'+fmtPrice(item.price)+'</div>'+
+      '<div class="mi-price">'+fmtPrice(item.price)+(qty>1 ? ' <span style="color:var(--sub); font-weight:400;">/<span data-th>ใบ</span><span data-en>ea</span></span>' : '')+'</div>'+
       '<span class="mi-remove" onclick="removeHitItem('+i+')">×</span>';
     attachDragHandlers(d, 'hit');
     hitWrap.appendChild(d);
@@ -2357,7 +2358,7 @@ function loadBoardIntoForm(entry){
     if(e.nonHit){
       nonHitItems.push({uid:uid, name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition==='Raw' ? '' : e.condition, isRaw:e.condition==='Raw', price:e.price, qty:e.qty});
     } else {
-      hitItems.push({uid:uid, name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition||'', price:e.price});
+      hitItems.push({uid:uid, name:e.label, sku:e.sku||'', img:e.img||'', condition:e.condition||'', price:e.price, qty:e.qty||1});
     }
   });
   lastOneItem = entry.lastOneSnapshot || null;
@@ -2538,6 +2539,8 @@ function parseCsvImportData(text, assumedYear, hitCutoff){
   // more than once is a Hit only if its price is ABOVE the median price
   // across all groups (i.e. still a relatively premium item even though it
   // repeats a couple of times) — otherwise it's bulk filler → Non-hit.
+  // Same-signature Hit rows are merged into ONE entry with Qty>1 (matching
+  // how Non-hit already works) rather than duplicated as separate rows.
   // In cutoff mode, everything reaching this point is already past the
   // cutoff, so it's simply grouped as Non-hit regardless of price.
   var medianPrice = 0;
@@ -2549,18 +2552,12 @@ function parseCsvImportData(text, assumedYear, hitCutoff){
   order.forEach(function(key){
     var g = groups[key];
     var isHitGroup = !useCutoff && (g.units.length === 1 || g.price > medianPrice);
-    if(isHitGroup){
-      // Premium item that happens to repeat a couple of times — keep each
-      // physical copy as its own individual Hit entry rather than merging.
-      g.units.forEach(function(u){
-        var hUid = genUid();
-        hitItems.push({uid:hUid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, price:g.price});
-        soldByUid[hUid] = [{sold:u.sold, date:u.date}];
-      });
-      return;
-    }
     var uid = genUid();
-    nonHitItems.push({uid:uid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, isRaw:g.condition==='Raw', price:g.price, qty:g.units.length});
+    if(isHitGroup){
+      hitItems.push({uid:uid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, price:g.price, qty:g.units.length});
+    } else {
+      nonHitItems.push({uid:uid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, isRaw:g.condition==='Raw', price:g.price, qty:g.units.length});
+    }
     soldByUid[uid] = g.units.map(function(u){ return {sold:u.sold, date:u.date}; });
   });
 
@@ -2568,7 +2565,12 @@ function parseCsvImportData(text, assumedYear, hitCutoff){
   // all Hit items first (in order), then all Non-hit items (in order).
   var slotOf = {};
   var slotNo = 1;
-  hitItems.forEach(function(h){ slotOf[h.uid] = [slotNo]; slotNo++; });
+  hitItems.forEach(function(h){
+    var arr = [];
+    var qty = h.qty || 1;
+    for(var k = 0; k < qty; k++){ arr.push(slotNo); slotNo++; }
+    slotOf[h.uid] = arr;
+  });
   nonHitItems.forEach(function(n){
     var arr = [];
     for(var k = 0; k < n.qty; k++){ arr.push(slotNo); slotNo++; }
@@ -2590,20 +2592,21 @@ function parseCsvImportData(text, assumedYear, hitCutoff){
     byDate[ev.date][ev.uid].push(ev.unitIndex);
   });
 
-  var nonHitCursor = {}; // uid -> how many of its slots already consumed by an earlier date, in row order
+  var itemCursor = {}; // uid -> how many of its slots already consumed by an earlier date, in row order
   var liveSessions = Object.keys(byDate).sort().map(function(date){
     var sales = [];
     Object.keys(byDate[date]).forEach(function(uid){
-      var isHit = !!hitItems.find(function(h){ return h.uid===uid; });
-      var label = (hitItems.find(function(h){ return h.uid===uid; }) || nonHitItems.find(function(n){ return n.uid===uid; }) || {}).name || '';
+      var item = hitItems.find(function(h){ return h.uid===uid; }) || nonHitItems.find(function(n){ return n.uid===uid; }) || {};
+      var label = item.name || '';
+      var totalQty = item.qty || 1;
       var qty = byDate[date][uid].length;
-      if(isHit){
+      if(totalQty === 1){
         sales.push({uid:uid, label:label, sold:true, qty:1});
       } else {
-        var start = nonHitCursor[uid] || 0;
+        var start = itemCursor[uid] || 0;
         var allSlots = slotOf[uid] || [];
         var slots = allSlots.slice(start, start + qty);
-        nonHitCursor[uid] = start + qty;
+        itemCursor[uid] = start + qty;
         sales.push({uid:uid, label:label, sold:true, qty:qty, slots:slots});
       }
     });
