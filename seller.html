@@ -134,9 +134,20 @@
     .board-row{ flex-direction:column; align-items:flex-start; }
     .board-row-stats{ flex-wrap:wrap; row-gap:10px; width:100%; }
   }
+
+  #loadingOverlay{position:fixed; inset:0; background:rgba(247,247,247,.92); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;}
+  #loadingOverlay.hidden{display:none;}
+  .loading-spinner{width:38px; height:38px; border-radius:50%; border:3px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite;}
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .loading-text{font-size:13.5px; color:var(--sub); font-weight:500;}
 </style>
 </head>
 <body>
+
+<div id="loadingOverlay" class="hidden">
+  <div class="loading-spinner"></div>
+  <div class="loading-text"><span data-th>กำลังโหลดข้อมูล...</span><span data-en>Loading data...</span></div>
+</div>
 
 <div class="modal">
   <div class="modal-head">
@@ -376,9 +387,12 @@ function tryEnter(){
     return;
   }
 
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+
   fetch(API_URL + '?action=getBySeller&email=' + encodeURIComponent(email))
     .then(function(r){ return r.json(); })
     .then(function(res){
+      document.getElementById('loadingOverlay').classList.add('hidden');
       if(!res.ok){
         errEl.textContent = 'Error: ' + res.error;
         errEl.style.display = 'block';
@@ -396,6 +410,7 @@ function tryEnter(){
       showBoardsList();
     })
     .catch(function(err){
+      document.getElementById('loadingOverlay').classList.add('hidden');
       errEl.textContent = 'Request failed: ' + err.message;
       errEl.style.display = 'block';
     });
@@ -417,17 +432,25 @@ function renderBoardsListSeller(){
       if(e.target.classList.contains('board-select-chk')) return;
       viewBoard(i);
     };
+    var statsHtml =
+      '<div>Spots<b>'+b.stats.totalSlots+'</b></div>'+
+      '<div>Max Money<b>'+fmt(b.stats.maxMoney)+'</b></div>'+
+      '<div>Hit/Non-hit<b>'+b.stats.hitCount+' / '+b.stats.nonHitCount+'</b></div>';
+    if(b.stats.pricePerSpot > 0){
+      var fin = computeBoardFinancials(b);
+      var profitColor = fin.profit>0 ? '#2E7D32' : (fin.profit<0 ? '#C0392B' : 'inherit');
+      statsHtml +=
+        '<div>Sold<b>'+fin.soldSpots+' / '+fin.totalSlots+'</b></div>'+
+        '<div>Break-even<b>'+fmt(b.stats.breakEven)+'</b></div>'+
+        '<div>Profit/Loss<b style="color:'+profitColor+';">'+fmt(fin.profit)+'</b></div>';
+    }
     row.innerHTML =
       '<input type="checkbox" class="board-select-chk" data-idx="'+i+'" '+(selectedBoardIdx[i] ? 'checked' : '')+'>'+
       '<div class="board-row-main">'+
         '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span></div>'+
         '<div class="board-row-sub">'+fmtPrice(b.stats.pricePerSpot)+' / spot</div>'+
       '</div>'+
-      '<div class="board-row-stats">'+
-        '<div>Spots<b>'+b.stats.totalSlots+'</b></div>'+
-        '<div>Max Money<b>'+fmt(b.stats.maxMoney)+'</b></div>'+
-        '<div>Hit/Non-hit<b>'+b.stats.hitCount+' / '+b.stats.nonHitCount+'</b></div>'+
-      '</div>';
+      '<div class="board-row-stats">'+statsHtml+'</div>';
     var chk = row.querySelector('.board-select-chk');
     chk.onchange = function(){ onBoardCheckChange(i, chk.checked); };
     wrap.appendChild(row);
