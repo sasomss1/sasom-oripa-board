@@ -282,18 +282,18 @@
   .slot-pill.locked{background:#EDEDED; color:#B5B5B5; cursor:not-allowed; text-decoration:line-through;}
   .sold-row.sr-locked{opacity:.65;}
 
-  .board-row{border:1px solid var(--gray-line); border-radius:14px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px;}
+  .board-row{border:1px solid var(--gray-line); border-radius:14px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:28px;}
   .boards-filter-row{display:flex; align-items:flex-end; gap:14px; margin-bottom:18px; flex-wrap:wrap;}
   .boards-filter-row input{margin-bottom:0;}
   .board-group-header{font-weight:600; font-size:14px; color:var(--sub); margin:14px 0 6px; padding-bottom:6px; border-bottom:1px solid var(--gray-line);}
   .board-group-header:first-child{margin-top:0;}
-  .board-row-main{flex:1; min-width:0;}
+  .board-row-main{flex:0 1 auto; min-width:0; max-width:280px;}
   .board-row-title{display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px; flex-wrap:wrap;}
   .board-row-sub{font-size:12.5px; color:var(--sub); margin-top:2px;}
-  .board-row-stats{display:flex; gap:20px; font-size:12.5px; color:var(--sub); flex-shrink:0;}
-  .board-row-stats > div{width:96px; flex-shrink:0;}
+  .board-row-stats{display:flex; gap:18px; font-size:12.5px; color:var(--sub); flex-shrink:0;}
+  .board-row-stats > div{width:90px; flex-shrink:0;}
   .board-row-stats b{display:block; color:var(--dark); font-size:14px; font-weight:600;}
-  .board-row-actions{display:flex; gap:8px; flex-shrink:0;}
+  .board-row-actions{display:flex; gap:8px; flex-shrink:0; margin-left:auto;}
 
   /* ===== Mobile (iPhone etc.) — additive only, desktop styles above untouched ===== */
   @media (max-width: 640px){
@@ -2101,10 +2101,16 @@ var selectedBoardIds = {};
 function buildBoardRow(b){
   var row = document.createElement('div');
   row.className = 'board-row';
+  var pnlBadge = '';
+  if(b.stats.pricePerSpot > 0){
+    var fin = computeBoardFinancials(b);
+    var statusClass = fin.status === 'Profit' ? 'profit' : (fin.status === 'Loss' ? 'loss' : 'breakeven');
+    pnlBadge = ' <span class="status-badge '+statusClass+'">'+fin.status+'</span>';
+  }
   row.innerHTML =
     '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
     '<div class="board-row-main">'+
-      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span></div>'+
+      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span>'+pnlBadge+'</div>'+
       '<div class="board-row-sub">'+b.sellerEmail+(b.createdAt ? ' · '+formatDateDMY(b.createdAt.slice(0,10)) : '')+'</div>'+
     '</div>'+
     '<div class="board-row-stats">'+
@@ -2319,7 +2325,7 @@ function buildSummaryRow(b, fin){
   row.innerHTML =
     '<input type="checkbox" class="summary-select-chk" data-id="'+b.boardId+'" '+(selectedSummaryIds[b.boardId] ? 'checked' : '')+'>'+
     '<div class="board-row-main">'+
-      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+statusClass+'">'+fin.status+'</span></div>'+
+      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span> <span class="status-badge '+statusClass+'">'+fin.status+'</span></div>'+
       '<div class="board-row-sub">'+b.sellerEmail+'</div>'+
     '</div>'+
     '<div class="board-row-stats">'+
