@@ -208,6 +208,32 @@ function formatDateDMY(iso){
 function apiConfigured(){ return API_URL && API_URL.indexOf('http') === 0; }
 function padSlot(n){ return 'S-'+String(n).padStart(3,'0'); }
 
+// Realized (actual) profit/loss from sales recorded in Live History — same
+// logic as the Admin Summary page, computed for just this one board.
+function computeBoardFinancials(b){
+  var pricePerSpot = b.stats.pricePerSpot;
+  var feePct = (b.sellerFeePct != null) ? b.sellerFeePct : 5;
+
+  var priceByLabel = {};
+  (b.entriesSnapshot||[]).forEach(function(e){ priceByLabel[e.label] = e.price; });
+
+  var soldSpots = 0, soldCost = 0;
+  (b.liveSessions||[]).forEach(function(s){
+    if(s.paymentStatus === 'CANCEL') return;
+    (s.sales||[]).forEach(function(r){
+      if(!r.sold) return;
+      soldSpots += (r.qty||0);
+      soldCost += (priceByLabel[r.label] || 0) * (r.qty||0);
+    });
+  });
+
+  var soldGMV = soldSpots * pricePerSpot;
+  var profit = soldGMV - soldCost;
+  var status = (soldSpots === 0 || profit === 0) ? 'Break-even' : (profit > 0 ? 'Profit' : 'Loss');
+
+  return {soldSpots:soldSpots, totalSlots:b.stats.totalSlots, soldGMV:soldGMV, soldCost:soldCost, profit:profit, status:status};
+}
+
 // ============== CSV EXPORT ==============
 function csvEscape(val){
   var s = (val === null || val === undefined) ? '' : String(val);
@@ -252,13 +278,25 @@ function boardToCSVBlock(b){
   rows.push(['Live Date', 'Note', 'Spots Sold', 'Sale Value', 'Fee %', 'Fee Amount', 'Payout', 'Payment Status']);
   var pricePerSpot = b.stats.pricePerSpot;
   var feePct = (b.sellerFeePct != null) ? b.sellerFeePct : 5;
+  var totalSpotsSold = 0, totalSaleValue = 0, totalFee = 0, totalPayout = 0;
   (b.liveSessions||[]).forEach(function(s){
     var soldQty = (s.sales||[]).reduce(function(sum,r){ return sum + (r.sold ? (r.qty||0) : 0); }, 0);
     var saleValue = soldQty * pricePerSpot;
     var feeAmount = saleValue * (feePct/100);
     var payout = saleValue - feeAmount;
     rows.push([s.date, s.note||'', soldQty, saleValue, feePct, feeAmount, payout, s.paymentStatus||'PENDING']);
+    if((s.paymentStatus||'PENDING') !== 'CANCEL'){
+      totalSpotsSold += soldQty;
+      totalSaleValue += saleValue;
+      totalFee += feeAmount;
+      totalPayout += payout;
+    }
   });
+  rows.push([]);
+  rows.push(['Total spots sold', totalSpotsSold]);
+  rows.push(['Total sale value', totalSaleValue]);
+  rows.push(['Total fee deducted', totalFee]);
+  rows.push(['Total you receive', totalPayout]);
   return rows;
 }
 
@@ -441,6 +479,19 @@ function renderBoard(){
         '<div class="stat-card"><div class="l"><span data-th>ราคาที่ไม่ขาดทุน</span><span data-en>Break-even price</span></div><div class="v">'+fmt(b.stats.breakEven)+'</div></div>'+
         '<div class="stat-card"><div class="l"><span data-th>จำนวนจุ่มทั้งหมด</span><span data-en>Total pulls</span></div><div class="v">'+b.stats.totalSlots+'</div></div>'+
       '</div></div>';
+
+    var fin = computeBoardFinancials(b);
+    var statusClass = fin.status === 'Profit' ? 'on' : (fin.status === 'Loss' ? 'off' : 'prepare');
+    if(b.stats.pricePerSpot > 0){
+      html += '<div class="card"><h2><span data-th>สรุปกำไร/ขาดทุน (ยอดขายจริง)</span><span data-en>Profit / Loss Summary (actual sales)</span> <span class="status-badge '+statusClass+'">'+fin.status+'</span></h2>'+
+        '<div class="stat-grid">'+
+          '<div class="stat-card"><div class="l"><span data-th>ขายไปแล้ว</span><span data-en>Sold</span></div><div class="v">'+fin.soldSpots+' / '+fin.totalSlots+'</div></div>'+
+          '<div class="stat-card"><div class="l"><span data-th>ยอดขายจริง</span><span data-en>Sold GMV</span></div><div class="v">'+fmt(fin.soldGMV)+'</div></div>'+
+          '<div class="stat-card"><div class="l"><span data-th>ต้นทุนที่ขายจริง</span><span data-en>Sold Cost</span></div><div class="v">'+fmt(fin.soldCost)+'</div></div>'+
+          '<div class="stat-card accent"><div class="l"><span data-th>กำไร/ขาดทุน</span><span data-en>Profit / Loss</span></div><div class="v" style="color:'+(fin.profit<0?'#ff8a80':'var(--accent)')+';">'+fmt(fin.profit)+'</div></div>'+
+        '</div></div>';
+    }
+
   }
 
   html += '<div class="item-list">';
