@@ -827,8 +827,17 @@
       <label><span data-th>จำนวนรายการฮิต (ไม่บังคับ)</span><span data-en>Number of hit rows (optional)</span></label>
       <input type="number" id="csvHitCutoff" placeholder="">
       <div class="hint" style="margin-top:6px;">
-        <span data-th>ถ้ารู้จำนวนแถวที่ไฮไลต์สีในชีตต้นฉบับ ใส่ตัวเลขตรงนี้ (แถวที่เหลือจะถูกจัดเป็นไม่ฮิตทั้งหมด) — ถ้าเว้นว่างไว้ ระบบจะเดาให้อัตโนมัติ: ของที่ไม่ซ้ำใครหรือราคาสูงกว่าค่ากลาง = ฮิต, ของราคาต่ำที่ซ้ำกันเยอะ = ไม่ฮิต</span>
-        <span data-en>If you know the number of highlighted rows in the source sheet, enter it here (everything else becomes non-hit). Leave blank to auto-detect: unique or above-median-price items become Hit, low-value repeated items become Non-hit.</span>
+        <span data-th>ถ้ารู้จำนวนแถวที่ไฮไลต์สีในชีตต้นฉบับ ใส่ตัวเลขตรงนี้ (แถวที่เหลือจะถูกจัดเป็นไม่ฮิตทั้งหมด) — ถ้าเว้นว่างไว้ ระบบจะเดาให้อัตโนมัติจากด้านล่าง</span>
+        <span data-en>If you know the number of highlighted rows in the source sheet, enter it here (everything else becomes non-hit). Leave blank to auto-detect using the setting below.</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label><span data-th>ของซ้ำกันตั้งแต่กี่ใบขึ้นไปถือเป็นไม่ฮิต (สำหรับ auto-detect)</span><span data-en>Repeat count that counts as non-hit (for auto-detect)</span></label>
+      <input type="number" id="csvNonHitThreshold" value="5">
+      <div class="hint" style="margin-top:6px;">
+        <span data-th>ใช้เฉพาะตอนเว้นช่อง "จำนวนรายการฮิต" ไว้ — SKU ที่ซ้ำน้อยกว่าตัวเลขนี้ (เช่น มี 2-3 ใบ) จะยังถือเป็นฮิต ซ้ำเยอะกว่านี้ถือเป็นไม่ฮิต</span>
+        <span data-en>Only used when "Number of hit rows" is left blank — a SKU repeating fewer times than this (e.g. 2-3 copies) still counts as a Hit; repeating this many times or more counts as Non-hit</span>
       </div>
     </div>
 
@@ -2380,6 +2389,7 @@ function openCsvImportModal(){
   document.getElementById('csvPricePerSpot').value = document.getElementById('pricePerSpot').value || '';
   document.getElementById('csvDateYear').value = new Date().getFullYear();
   document.getElementById('csvHitCutoff').value = '';
+  document.getElementById('csvNonHitThreshold').value = 5;
   document.getElementById('csvFileInput').value = '';
   document.getElementById('csvPreviewBox').innerHTML = '';
   csvStatus = 'PREPARE';
@@ -2456,7 +2466,8 @@ function onCsvFileChosen(event){
     try{
       var year = +document.getElementById('csvDateYear').value || new Date().getFullYear();
       var hitCutoff = +document.getElementById('csvHitCutoff').value || 0;
-      var result = parseCsvImportData(e.target.result, year, hitCutoff);
+      var nonHitThreshold = +document.getElementById('csvNonHitThreshold').value || 5;
+      var result = parseCsvImportData(e.target.result, year, hitCutoff, nonHitThreshold);
       parsedCsvImport = result;
       renderCsvPreview(result);
       var btn = document.getElementById('csvImportConfirmBtn');
@@ -2473,7 +2484,7 @@ function onCsvFileChosen(event){
 // Hit entries; every row after that becomes Non-hit, grouped by matching
 // Product+SKU+Condition+Price so genuine duplicates collapse into one entry
 // with Qty>1 (unique non-hit rows just end up as their own Qty=1 entry).
-function parseCsvImportData(text, assumedYear, hitCutoff){
+function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   var table = parseCSV(text);
   if(!table.length) throw new Error('Empty file');
   var header = table[0].map(function(h){ return h.trim().toLowerCase(); });
@@ -2511,10 +2522,13 @@ function parseCsvImportData(text, assumedYear, hitCutoff){
     if(useCutoff && dataRowIndex <= hitCutoff){
       hitRows.push({name:name, sku:sku, img:imgLink, condition:condition, price:price, sold:sold, date:date});
     } else {
-      // Auto-detect mode (no cutoff given) groups EVERY row by signature first;
+      // Auto-detect mode (no cutoff given) groups EVERY row by SKU first;
       // cutoff mode only groups rows past the cutoff. Either way, matching
       // duplicates collapse into one entry here — classification happens below.
-      var key = name + '|' + sku + '|' + condition + '|' + price;
+      // Grouped by SKU specifically (falling back to name+condition+price
+      // only when SKU is blank) so minor text differences elsewhere don't
+      // cause the same product to get split into separate groups.
+      var key = sku ? ('sku:'+sku.toLowerCase()) : ('noSku:'+name + '|' + condition + '|' + price);
       if(!groups[key]){
         groups[key] = {name:name, sku:sku, img:imgLink, condition:condition, price:price, units:[]};
         order.push(key);
@@ -2535,23 +2549,17 @@ function parseCsvImportData(text, assumedYear, hitCutoff){
     soldByUid[uid] = [{sold:hr.sold, date:hr.date}];
   });
 
-  // Auto-detect mode: a group with qty===1 is always a Hit. A group repeated
-  // more than once is a Hit only if its price is ABOVE the median price
-  // across all groups (i.e. still a relatively premium item even though it
-  // repeats a couple of times) — otherwise it's bulk filler → Non-hit.
-  // Same-signature Hit rows are merged into ONE entry with Qty>1 (matching
-  // how Non-hit already works) rather than duplicated as separate rows.
-  // In cutoff mode, everything reaching this point is already past the
-  // cutoff, so it's simply grouped as Non-hit regardless of price.
-  var medianPrice = 0;
-  if(!useCutoff){
-    var prices = order.map(function(k){ return groups[k].price; }).sort(function(a,b){ return a-b; });
-    medianPrice = prices.length ? prices[Math.floor((prices.length-1)/2)] : 0;
-  }
+  // Auto-detect mode: a group is Non-hit only if it repeats a LOT — a card
+  // showing up 2-3 times is still normally a real hit (just multiple copies),
+  // whereas bulk filler tends to repeat many times (e.g. 90x). The exact
+  // cutoff is admin-configurable via "nonHitQtyThreshold" (default 5) rather
+  // than guessed from price, since price alone doesn't reliably separate
+  // "a few extra copies of a good card" from "generic bulk filler".
+  var qtyThreshold = nonHitQtyThreshold || 5;
 
   order.forEach(function(key){
     var g = groups[key];
-    var isHitGroup = !useCutoff && (g.units.length === 1 || g.price > medianPrice);
+    var isHitGroup = !useCutoff && g.units.length < qtyThreshold;
     var uid = genUid();
     if(isHitGroup){
       hitItems.push({uid:uid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, price:g.price, qty:g.units.length});
