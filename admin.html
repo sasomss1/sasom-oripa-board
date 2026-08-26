@@ -291,6 +291,7 @@
   .board-row-title{display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px;}
   .board-row-sub{font-size:12.5px; color:var(--sub); margin-top:2px;}
   .board-row-stats{display:flex; gap:20px; font-size:12.5px; color:var(--sub); flex-shrink:0;}
+  .board-row-stats > div{width:96px; flex-shrink:0;}
   .board-row-stats b{display:block; color:var(--dark); font-size:14px; font-weight:600;}
   .board-row-actions{display:flex; gap:8px; flex-shrink:0;}
 
@@ -605,7 +606,6 @@
     <h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1>
     <div class="head-right">
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
-      <button class="change-btn" onclick="exportAllBoardsFullDetail()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
@@ -863,11 +863,12 @@ var hitItems = [];       // {uid, name, sku, img, condition, price}
 var nonHitItems = [];    // {uid, name, sku, img, condition, isRaw, price, qty}
 var lastOneItem = null;  // {name, price}
 
-var sellerEmails = [
+var sellerEmailsDefault = [
   'invencollectible@gmail.com','sasominven@gmail.com','preorderdefect@gmail.com',
   'siamdoxa@gmail.com','kenyu.kim0131@gmail.com','poom_jiraroj@hotmail.com',
   'siravit.p@sasom.co.th','g.lertkom@gmail.com','bosskungjr@gmail.com'
 ];
+var sellerEmails = sellerEmailsDefault.slice(); // synced with the backend once fetchSellerEmailsFromServer() runs
 var currentSellerEmail = null;
 var savedBoards = []; // {sellerEmail, boardName, stats, entriesSnapshot, lastOneSnapshot, status, liveSessions}
 var boardStatus = 'PREPARE'; // 'PREPARE' | 'ON' | 'OFF'
@@ -1019,6 +1020,7 @@ function buildSlotMap(){
 
 function renderMiniLists(){
   var slotMap = buildSlotMap();
+  initDropZonesOnce();
 
   var hitWrap = document.getElementById('hitItemList');
   hitWrap.innerHTML = '';
@@ -1074,15 +1076,30 @@ function renderMiniLists(){
   if(lastOneItem){
     var d2 = document.createElement('div');
     d2.className = 'mini-item';
-    d2.innerHTML = '<div style="flex:1; min-width:0;"><div class="mi-name">'+lastOneItem.name+'</div></div><div class="mi-price">'+fmt(lastOneItem.price)+'</div><span class="mi-remove" onclick="removeLastOne()">×</span>';
+    d2.draggable = true;
+    d2.dataset.idx = 0;
+    d2.dataset.list = 'lastone';
+    d2.innerHTML = '<span class="mi-drag">⠿</span><div style="flex:1; min-width:0;"><div class="mi-name">'+lastOneItem.name+'</div></div><div class="mi-price">'+fmt(lastOneItem.price)+'</div><span class="mi-remove" onclick="removeLastOne()">×</span>';
+    attachDragHandlers(d2, 'lastone');
     loWrap.appendChild(d2);
   }
   document.getElementById('lastOneCount').textContent = lastOneItem ? 1 : 0;
 }
 
+var dropZonesInitialized = false;
+function initDropZonesOnce(){
+  if(dropZonesInitialized) return;
+  dropZonesInitialized = true;
+  attachContainerDropHandlers(document.getElementById('hitItemList'), 'hit');
+  attachContainerDropHandlers(document.getElementById('nonHitItemList'), 'nonhit');
+  attachContainerDropHandlers(document.getElementById('lastOneItemList'), 'lastone');
+}
+
 var dragSrcIdx = null;
+var dragSrcList = null;
 function attachDragHandlers(el, listName){
   el.addEventListener('dragstart', function(e){
+    dragSrcList = listName;
     dragSrcIdx = +el.dataset.idx;
     e.dataTransfer.effectAllowed = 'move';
   });
@@ -1090,15 +1107,75 @@ function attachDragHandlers(el, listName){
   el.addEventListener('dragleave', function(){ el.classList.remove('drag-over'); });
   el.addEventListener('drop', function(e){
     e.preventDefault();
+    e.stopPropagation();
     el.classList.remove('drag-over');
     var targetIdx = +el.dataset.idx;
-    if(dragSrcIdx === null || dragSrcIdx === targetIdx) return;
-    var arr = listName === 'hit' ? hitItems : nonHitItems;
-    var moved = arr.splice(dragSrcIdx, 1)[0];
-    arr.splice(targetIdx, 0, moved);
-    dragSrcIdx = null;
+    if(dragSrcList === null) return;
+    if(dragSrcList === listName){
+      if(dragSrcIdx === targetIdx) return;
+      var arr = listNameToArr(listName);
+      var moved = arr.splice(dragSrcIdx, 1)[0];
+      arr.splice(targetIdx, 0, moved);
+    } else {
+      moveItemBetweenLists(dragSrcList, dragSrcIdx, listName, targetIdx);
+    }
+    dragSrcList = null; dragSrcIdx = null;
     recalc();
   });
+}
+
+// Container-level drop target so dropping on empty space (or below the last
+// item) in a list still works, and so dragging onto a completely empty list
+// has somewhere to land.
+function attachContainerDropHandlers(el, listName){
+  el.addEventListener('dragover', function(e){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  el.addEventListener('drop', function(e){
+    if(e.target !== el) return; // a child item's own drop handler already dealt with it
+    e.preventDefault();
+    if(dragSrcList === null) return;
+    if(dragSrcList === listName){
+      // dropped on empty space within its own list — nothing to reorder
+    } else {
+      var targetArr = listNameToArr(listName);
+      var targetIdx = targetArr ? targetArr.length : 0;
+      moveItemBetweenLists(dragSrcList, dragSrcIdx, listName, targetIdx);
+      recalc();
+    }
+    dragSrcList = null; dragSrcIdx = null;
+  });
+}
+
+function listNameToArr(listName){
+  if(listName === 'hit') return hitItems;
+  if(listName === 'nonhit') return nonHitItems;
+  return null; // 'lastone' isn't an array
+}
+
+// Converts an item's shape when it crosses between Hit / Non-hit / Last One,
+// since each section stores slightly different fields (Non-hit has qty+isRaw,
+// Last One is just name+price, Hit has qty but no isRaw).
+function moveItemBetweenLists(fromList, fromIdx, toList, toIdx){
+  var item;
+  if(fromList === 'lastone'){
+    item = lastOneItem;
+    lastOneItem = null;
+  } else {
+    var fromArr = listNameToArr(fromList);
+    item = fromArr.splice(fromIdx, 1)[0];
+  }
+  if(!item) return;
+
+  if(toList === 'lastone'){
+    lastOneItem = {name: item.name, price: item.price};
+    return;
+  }
+  if(toList === 'hit'){
+    var hitItem = {uid: item.uid || genUid(), name: item.name, sku: item.sku||'', img: item.img||'', condition: item.condition||'', price: item.price, qty: item.qty||1};
+    hitItems.splice(toIdx, 0, hitItem);
+  } else if(toList === 'nonhit'){
+    var nhItem = {uid: item.uid || genUid(), name: item.name, sku: item.sku||'', img: item.img||'', condition: item.condition||'', isRaw:false, price: item.price, qty: item.qty||1};
+    nonHitItems.splice(toIdx, 0, nhItem);
+  }
 }
 
 function removeHitItem(i){ hitItems.splice(i,1); recalc(); }
@@ -1113,8 +1190,8 @@ function recalc(){
   renderMiniLists();
 
   var entries = getCombinedEntries();
-  var totalQty = 0, ladderCost = 0, hitCount = hitItems.length, nonHitCount = 0;
-  entries.forEach(function(e){ totalQty += e.qty; ladderCost += e.price * e.qty; if(e.nonHit) nonHitCount += e.qty; });
+  var totalQty = 0, ladderCost = 0, hitCount = 0, nonHitCount = 0;
+  entries.forEach(function(e){ totalQty += e.qty; ladderCost += e.price * e.qty; if(e.nonHit) nonHitCount += e.qty; else hitCount += e.qty; });
   var lastOneCost = lastOneItem ? lastOneItem.price : 0;
   var totalCost = ladderCost + lastOneCost;
 
@@ -1209,6 +1286,7 @@ function removeSellerEmail(i){
   if(!confirm('Remove "'+email+'" from the seller list? (This does not delete any boards already saved for this email.)')) return;
   sellerEmails.splice(i, 1);
   buildSellerOptions();
+  saveSellerEmailsToServer();
 }
 function pickSeller(email){
   currentSellerEmail = email;
@@ -1220,10 +1298,35 @@ function pickSeller(email){
 function addNewSeller(){
   var v = document.getElementById('newSellerEmail').value.trim();
   if(!v) return;
-  sellerEmails.unshift(v);
+  if(sellerEmails.indexOf(v) === -1) sellerEmails.unshift(v);
   buildSellerOptions();
   pickSeller(v);
   document.getElementById('newSellerEmail').value = '';
+  saveSellerEmailsToServer();
+}
+
+function fetchSellerEmailsFromServer(){
+  if(!apiConfigured()) return Promise.resolve();
+  return fetch(API_URL + '?action=getSellerEmails')
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if(res.ok && res.emails && res.emails.length){
+        sellerEmails = res.emails;
+        buildSellerOptions();
+      } else if(res.ok){
+        // Sheet is empty (first time) — seed it with the built-in defaults
+        sellerEmails = sellerEmailsDefault.slice();
+        buildSellerOptions();
+        saveSellerEmailsToServer();
+      }
+    })
+    .catch(function(){ /* keep the built-in defaults if the fetch fails */ });
+}
+
+function saveSellerEmailsToServer(){
+  if(!apiConfigured()) return;
+  fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'saveSellerEmails', emails: sellerEmails }) })
+    .catch(function(){ /* silent — email list will just re-sync next load */ });
 }
 
 // ============== LAST ONE (simple modal) ==============
@@ -2265,7 +2368,8 @@ function exportSummaryCSV(){
   if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var selected = lastSummaryData.filter(function(item){ return selectedSummaryIds[item.board.boardId]; });
 
-  var rows = [['No','Board','Seller Email','Status Board','Price/Spot','Total Spots','Sold','GMV','Sold GMV','Cost','Sold Cost','Profit','Status Profit','Seller Fee %','Fee Amount','Payable to Seller']];
+  var rows = [['=== SUMMARY ===']];
+  rows.push(['No','Board','Seller Email','Status Board','Price/Spot','Total Spots','Sold','GMV','Sold GMV','Cost','Sold Cost','Profit','Status Profit','Seller Fee %','Fee Amount','Payable to Seller']);
   var totalProfitSelected = 0, totalFeeSelected = 0, totalPayoutSelected = 0, countProfit = 0, countLoss = 0, countBreakEven = 0;
   selected.forEach(function(item, i){
     var b = item.board, fin = item.fin;
@@ -2289,6 +2393,16 @@ function exportSummaryCSV(){
   rows.push(['Total net profit', totalProfitSelected]);
   rows.push(['Total fee deducted', totalFeeSelected]);
   rows.push(['Total payable to sellers', totalPayoutSelected]);
+
+  // Full per-board detail (Board Info / Pricing & Calculation / Live History
+  // & Seller Payment / Hit List / Non-Hit List / Last One / Seller Email) for
+  // each selected board, appended after the summary section.
+  selected.forEach(function(item){
+    rows.push([]);
+    rows.push(['=== BOARD DETAIL: ' + item.board.boardName + ' ===']);
+    rows = rows.concat(boardToCSVRows(item.board));
+  });
+
   downloadCSV('profit-loss-summary.csv', rows);
 }
 
@@ -2522,13 +2636,10 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     if(useCutoff && dataRowIndex <= hitCutoff){
       hitRows.push({name:name, sku:sku, img:imgLink, condition:condition, price:price, sold:sold, date:date});
     } else {
-      // Auto-detect mode (no cutoff given) groups EVERY row by SKU first;
-      // cutoff mode only groups rows past the cutoff. Either way, matching
-      // duplicates collapse into one entry here — classification happens below.
-      // Grouped by SKU specifically (falling back to name+condition+price
-      // only when SKU is blank) so minor text differences elsewhere don't
-      // cause the same product to get split into separate groups.
-      var key = sku ? ('sku:'+sku.toLowerCase()) : ('noSku:'+name + '|' + condition + '|' + price);
+      // Grouped by SKU + price (falling back to name+condition+price when SKU
+      // is blank). Same SKU at a different price is treated as a distinct
+      // group — that price difference is real data, not noise to merge away.
+      var key = sku ? ('sku:'+sku.toLowerCase()+'|'+price) : ('noSku:'+name + '|' + condition + '|' + price);
       if(!groups[key]){
         groups[key] = {name:name, sku:sku, img:imgLink, condition:condition, price:price, units:[]};
         order.push(key);
@@ -2621,24 +2732,44 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     return {id: Date.now() + Math.random(), date:date, note:'', sales:sales, paymentStatus:'PENDING'};
   });
 
+  var allEntries = hitItems.concat(nonHitItems);
+  var skuPrices = {}; // sku -> Set of prices seen
+  allEntries.forEach(function(e){
+    if(!e.sku) return;
+    var k = e.sku.toLowerCase();
+    if(!skuPrices[k]) skuPrices[k] = {};
+    skuPrices[k][e.price] = true;
+  });
+  var skuPriceConflicts = Object.keys(skuPrices)
+    .filter(function(k){ return Object.keys(skuPrices[k]).length > 1; })
+    .map(function(k){ return {sku:k, prices: Object.keys(skuPrices[k]).map(Number)}; });
+
   return {
     hitItems: hitItems,
     nonHitItems: nonHitItems,
     liveSessions: liveSessions,
     hitCount: hitItems.length,
     nonHitCount: nonHitItems.reduce(function(sum,n){ return sum+n.qty; }, 0),
-    sessionCount: liveSessions.length
+    sessionCount: liveSessions.length,
+    skuPriceConflicts: skuPriceConflicts
   };
 }
 
 function renderCsvPreview(result){
   var box = document.getElementById('csvPreviewBox');
+  var warningHtml = '';
+  if(result.skuPriceConflicts.length){
+    warningHtml = '<div class="hint" style="color:#6B5900; background:#FFF6DC; padding:10px 14px; border-radius:10px; margin-top:10px;">'+
+      '<b><span data-th>พบ SKU เดียวกันแต่คนละราคา (แยกเป็นคนละรายการให้แล้ว):</span><span data-en>Same SKU found at different prices (kept as separate entries):</span></b><br>'+
+      result.skuPriceConflicts.map(function(c){ return c.sku + ': ' + c.prices.map(function(p){ return fmt(p); }).join(', '); }).join('<br>')+
+    '</div>';
+  }
   box.innerHTML =
     '<div class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-top:6px;">'+
       '<div class="stat-card"><div class="l">Hit items</div><div class="v">'+result.hitCount+'</div></div>'+
       '<div class="stat-card"><div class="l">Non-hit qty</div><div class="v">'+result.nonHitCount+'</div></div>'+
       '<div class="stat-card"><div class="l">Live sessions found</div><div class="v">'+result.sessionCount+'</div></div>'+
-    '</div>';
+    '</div>' + warningHtml;
 }
 
 function confirmCsvImport(){
@@ -2691,6 +2822,7 @@ if(!editParam){
 buildSellerOptions();
 renderLiveHistory();
 recalc();
+fetchSellerEmailsFromServer();
 
 if(viewParam === 'boards'){
   document.getElementById('formView').style.display = 'none';
