@@ -62,6 +62,8 @@
   .status-badge.off{background:#FBEAEA; color:#C0392B;}
 
   .back-link{font-size:13.5px; font-weight:500; color:var(--sub); cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-bottom:18px;}
+  .change-btn{border:1px solid var(--gray-line); background:#fff; color:var(--dark); border-radius:9px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap;}
+  .change-btn:disabled{opacity:.6; cursor:default;}
   .top-row{display:flex; gap:12px; margin:18px 0 14px;}
   .top-box{flex:1; background:#fff; border:1px solid var(--gray-line); border-radius:14px; padding:14px 16px; font-size:13px; color:var(--sub);}
   .top-box b{display:block; color:var(--dark); font-size:16px; margin-top:2px; font-weight:500;}
@@ -143,6 +145,7 @@
   .loading-spinner{width:38px; height:38px; border-radius:50%; border:3px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite;}
   @keyframes spin{ to{ transform:rotate(360deg); } }
   .loading-text{font-size:13.5px; color:var(--sub); font-weight:500;}
+  .inline-spinner{display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite; vertical-align:middle;}
 </style>
 </head>
 <body>
@@ -183,8 +186,13 @@
     <div id="boardsListSubView">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
         <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
-        <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+        <div style="display:flex; gap:8px;">
+          <button class="change-btn" id="refreshBoardsBtn" onclick="refreshBoards()"><span data-th>รีเฟรช</span><span data-en>Refresh</span></button>
+          <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+        </div>
       </div>
+
+      <div id="sellerSummaryStats" style="margin-bottom:16px;"></div>
 
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
         <input type="checkbox" id="selectAllBoards" onchange="toggleSelectAllBoards(this.checked)">
@@ -197,7 +205,10 @@
 
     <!-- DETAIL SUB-VIEW (shown after clicking a board) -->
     <div id="boardDetailSubView" style="display:none;">
-      <div class="back-link" onclick="showBoardsList()">← <span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+        <div class="back-link" onclick="showBoardsList()" style="margin-bottom:0;">← <span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></div>
+        <button class="change-btn" onclick="refreshBoards()"><span data-th>รีเฟรช</span><span data-en>Refresh</span></button>
+      </div>
       <div id="boardDetail"></div>
     </div>
 
@@ -374,6 +385,8 @@ function exportSelectedBoards(){
   exportBoardsMulti(list, idxs.length === myBoards.length ? 'my-boards' : 'selected-boards');
 }
 
+var currentLoggedInEmail = null;
+
 function tryEnter(){
   var email = document.getElementById('emailInput').value.trim().toLowerCase();
   var errEl = document.getElementById('gateError');
@@ -392,8 +405,7 @@ function tryEnter(){
 
   document.getElementById('loadingOverlay').classList.remove('hidden');
 
-  fetch(API_URL + '?action=getBySeller&email=' + encodeURIComponent(email))
-    .then(function(r){ return r.json(); })
+  fetchBoardsForEmail(email)
     .then(function(res){
       document.getElementById('loadingOverlay').classList.add('hidden');
       if(!res.ok){
@@ -407,6 +419,7 @@ function tryEnter(){
         errEl.style.display = 'block';
         return;
       }
+      currentLoggedInEmail = email;
       selectedBoardIdx = {};
       document.getElementById('gateView').style.display = 'none';
       document.getElementById('boardsView').style.display = 'block';
@@ -419,13 +432,73 @@ function tryEnter(){
     });
 }
 
+function fetchBoardsForEmail(email){
+  return fetch(API_URL + '?action=getBySeller&email=' + encodeURIComponent(email))
+    .then(function(r){ return r.json(); });
+}
+
+// Re-fetches this seller's boards without going back to the login screen.
+// Keeps whichever view (list or a specific board's detail) is currently open.
+function refreshBoards(){
+  if(!currentLoggedInEmail) return;
+  var wasInDetail = document.getElementById('boardDetailSubView').style.display !== 'none';
+  var refreshBtn = document.getElementById('refreshBoardsBtn');
+  if(refreshBtn){ refreshBtn.disabled = true; refreshBtn.querySelector('.inline-spinner') || refreshBtn.insertAdjacentHTML('afterbegin', '<span class="inline-spinner" style="margin-right:6px;"></span>'); }
+
+  fetchBoardsForEmail(currentLoggedInEmail)
+    .then(function(res){
+      if(res.ok && res.boards){
+        var currentBoardId = wasInDetail && myBoards[currentBoardIdx] ? myBoards[currentBoardIdx].boardId : null;
+        myBoards = res.boards;
+        if(wasInDetail && currentBoardId){
+          var newIdx = myBoards.findIndex(function(b){ return b.boardId === currentBoardId; });
+          currentBoardIdx = newIdx >= 0 ? newIdx : 0;
+          renderBoard();
+        } else {
+          renderBoardsListSeller();
+        }
+      }
+    })
+    .finally(function(){
+      if(refreshBtn){
+        refreshBtn.disabled = false;
+        var sp = refreshBtn.querySelector('.inline-spinner');
+        if(sp) sp.remove();
+      }
+    });
+}
+
 function backToGate(){
   document.getElementById('boardsView').style.display = 'none';
   document.getElementById('gateView').style.display = 'block';
 }
 
 // ---- All Boards list (seller's own boards only — no search/grouping needed) ----
+function renderSellerSummaryStats(){
+  var box = document.getElementById('sellerSummaryStats');
+  var priced = myBoards.filter(function(b){ return b.stats.pricePerSpot > 0; });
+  if(!priced.length){ box.innerHTML = ''; return; }
+
+  var countProfit = 0, countLoss = 0, countBreakEven = 0, totalProfit = 0;
+  priced.forEach(function(b){
+    var fin = computeBoardFinancials(b);
+    if(fin.status === 'Profit') countProfit++;
+    else if(fin.status === 'Loss') countLoss++;
+    else countBreakEven++;
+    totalProfit += fin.profit;
+  });
+
+  box.innerHTML =
+    '<div class="stat-grid">'+
+      '<div class="stat-card"><div class="l"><span data-th>บอร์ดกำไร</span><span data-en>Profit boards</span></div><div class="v">'+countProfit+'</div></div>'+
+      '<div class="stat-card"><div class="l"><span data-th>บอร์ดขาดทุน</span><span data-en>Loss boards</span></div><div class="v">'+countLoss+'</div></div>'+
+      '<div class="stat-card"><div class="l"><span data-th>บอร์ดคุ้มทุน</span><span data-en>Break-even boards</span></div><div class="v">'+countBreakEven+'</div></div>'+
+      '<div class="stat-card accent"><div class="l"><span data-th>กำไรสุทธิรวม</span><span data-en>Total net profit</span></div><div class="v">'+fmt(totalProfit)+'</div></div>'+
+    '</div>';
+}
+
 function renderBoardsListSeller(){
+  renderSellerSummaryStats();
   var wrap = document.getElementById('sellerBoardsListWrap');
   wrap.innerHTML = '';
   myBoards.forEach(function(b, i){
