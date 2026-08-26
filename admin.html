@@ -2038,6 +2038,7 @@ function setSummaryGroupBy(mode){
 // "if fully sold out" theoretical numbers shown elsewhere in the app.
 function computeBoardFinancials(b){
   var pricePerSpot = b.stats.pricePerSpot;
+  var feePct = (b.sellerFeePct != null) ? b.sellerFeePct : 5;
 
   var priceByLabel = {};
   (b.entriesSnapshot||[]).forEach(function(e){ priceByLabel[e.label] = e.price; });
@@ -2055,6 +2056,8 @@ function computeBoardFinancials(b){
   var soldGMV = soldSpots * pricePerSpot;
   var profit = soldGMV - soldCost;
   var status = (soldSpots === 0 || profit === 0) ? 'Break-even' : (profit > 0 ? 'Profit' : 'Loss');
+  var feeAmount = soldGMV * (feePct/100);
+  var payout = soldGMV - feeAmount;
 
   return {
     pricePerSpot: pricePerSpot,
@@ -2065,7 +2068,10 @@ function computeBoardFinancials(b){
     soldGMV: soldGMV,
     soldCost: soldCost,
     profit: profit,
-    status: status
+    status: status,
+    feePct: feePct,
+    feeAmount: feeAmount,
+    payout: payout
   };
 }
 
@@ -2087,6 +2093,7 @@ function buildSummaryRow(b, fin){
       '<div>Sold GMV<b>'+fmt(fin.soldGMV)+'</b></div>'+
       '<div>Sold Cost<b>'+fmt(fin.soldCost)+'</b></div>'+
       '<div>Profit<b style="color:'+(fin.profit>0?'#2E7D32':(fin.profit<0?'#C0392B':'inherit'))+';">'+fmt(fin.profit)+'</b></div>'+
+      '<div>Payable to Seller<b>'+fmt(fin.payout)+'</b></div>'+
     '</div>'+
     '<div class="board-row-actions">'+
       '<button class="ls-btn" onclick="editBoard(\''+b.boardId+'\')">Edit</button>'+
@@ -2184,16 +2191,19 @@ function exportSummaryCSV(){
   if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
   var selected = lastSummaryData.filter(function(item){ return selectedSummaryIds[item.board.boardId]; });
 
-  var rows = [['No','Board','Seller Email','Status Board','Price/Spot','Total Spots','Sold','GMV','Sold GMV','Cost','Sold Cost','Profit','Status Profit']];
-  var totalProfitSelected = 0, countProfit = 0, countLoss = 0, countBreakEven = 0;
+  var rows = [['No','Board','Seller Email','Status Board','Price/Spot','Total Spots','Sold','GMV','Sold GMV','Cost','Sold Cost','Profit','Status Profit','Seller Fee %','Fee Amount','Payable to Seller']];
+  var totalProfitSelected = 0, totalFeeSelected = 0, totalPayoutSelected = 0, countProfit = 0, countLoss = 0, countBreakEven = 0;
   selected.forEach(function(item, i){
     var b = item.board, fin = item.fin;
     rows.push([
       i+1, b.boardName, b.sellerEmail, b.status||'PREPARE',
       fin.pricePerSpot, fin.totalSlots, fin.soldSpots,
-      fin.maxMoney, fin.soldGMV, fin.totalCost, fin.soldCost, fin.profit, fin.status
+      fin.maxMoney, fin.soldGMV, fin.totalCost, fin.soldCost, fin.profit, fin.status,
+      fin.feePct, fin.feeAmount, fin.payout
     ]);
     totalProfitSelected += fin.profit;
+    totalFeeSelected += fin.feeAmount;
+    totalPayoutSelected += fin.payout;
     if(fin.status === 'Profit') countProfit++;
     else if(fin.status === 'Loss') countLoss++;
     else countBreakEven++;
@@ -2203,6 +2213,8 @@ function exportSummaryCSV(){
   rows.push(['Loss boards', countLoss]);
   rows.push(['Break-even boards', countBreakEven]);
   rows.push(['Total net profit', totalProfitSelected]);
+  rows.push(['Total fee deducted', totalFeeSelected]);
+  rows.push(['Total payable to sellers', totalPayoutSelected]);
   downloadCSV('profit-loss-summary.csv', rows);
 }
 
