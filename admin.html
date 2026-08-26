@@ -2,13 +2,10 @@
 <html lang="en" data-lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SASOM Oripa Board - Create</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --dark:#1B1B1B;
@@ -19,6 +16,11 @@
   }
   *{box-sizing:border-box;}
   button{-webkit-appearance:none; appearance:none; color:inherit; font-family:inherit;}
+  /* Smooth motion on every interactive control, matching the toggle switch's feel */
+  button, .toggle-pill .opt, .type-cell, .grade-cell, .status-tab, .slot-pill, .board-row, .pick-option{
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, opacity .15s ease, transform .1s ease;
+  }
+  button:active{ transform:scale(0.97); }
   body{
     margin:0;
     font-family:'Inter','Noto Sans Thai',sans-serif;
@@ -272,6 +274,7 @@
   .sold-row .sr-info{flex:1; min-width:0;}
   .sold-row .sr-name{font-weight:500;}
   .sold-row .sr-sub{font-size:11.5px; color:var(--sub); margin-top:1px;}
+  .sold-row .sr-sub a{color:var(--dark); font-weight:600; text-decoration:underline; cursor:pointer;}
   .sold-row .sr-price{color:var(--sub); white-space:nowrap; flex-shrink:0; padding-top:2px;}
   .slot-picker{display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:8px; margin-top:8px; padding:12px; background:var(--gray-bg); border-radius:10px; max-height:280px; overflow-y:auto;}
   .slot-pill{border:1px solid var(--gray-line); background:#fff; border-radius:7px; padding:8px 4px; font-size:11px; font-weight:500; cursor:pointer; user-select:none; text-align:center;}
@@ -330,8 +333,8 @@
   <div class="modal-head">
     <h1><span data-th>ขอสร้างบอร์ดใหม่</span><span data-en>Request New Board</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
-      <button class="change-btn" onclick="location.href='admin.html?view=summary&t='+Date.now()"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=boards"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=summary"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -526,11 +529,11 @@
   </div>
 
   <div class="sp-nav-row">
-    <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>กลับ</span><span data-en>Back</span></button>
+    <button class="change-btn" id="spBackLink" onclick="location.href='admin.html?view=boards"><span data-th>กลับ</span><span data-en>Back</span></button>
     <div class="sp-nav-actions">
       <button class="change-btn" onclick="exportCurrentBoard()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="change-btn" onclick="editCurrentBoard()"><span data-th>แก้ไข</span><span data-en>Edit</span></button>
-      <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="add-btn" onclick="location.href='admin.html">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
     </div>
   </div>
 
@@ -562,9 +565,9 @@
   <div class="modal-head">
     <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="location.href='admin.html?view=summary&t='+Date.now()"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=summary"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
-      <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="add-btn" onclick="location.href='admin.html">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -598,17 +601,17 @@
   <div class="modal-head">
     <h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1>
     <div class="head-right">
-      <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออกที่เลือก</span><span data-en>Export Selected</span></button>
-      <button class="change-btn" onclick="exportAllBoardsFullDetail()"><span data-th>ส่งออกทุกบอร์ด (ละเอียด)</span><span data-en>Export All Boards</span></button>
-      <button class="add-btn" onclick="location.href='admin.html?t='+Date.now()">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
-      <button class="change-btn" onclick="location.href='admin.html?view=boards&t='+Date.now()"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="change-btn" onclick="exportAllBoardsFullDetail()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="add-btn" onclick="location.href='admin.html">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="change-btn" onclick="location.href='admin.html?view=boards"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
       </div>
     </div>
   </div>
-  <p class="hint" style="margin:-8px 0 18px;"><span data-th>รวมเฉพาะบอร์ดที่ตั้งราคาต่อช่องไว้แล้ว — คำนวณจากยอดขายจริงที่บันทึกใน Live History แต่ละบอร์ด</span><span data-en>Only boards with a price per spot set are included — calculated from actual sales recorded in each board's Live History</span></p>
+
 
   <div class="boards-filter-row">
     <div style="flex:1;"></div>
@@ -926,7 +929,7 @@ function buildTierRows(){
 }
 
 function miniImgHtml(img){
-  return img ? '<img src="'+img+'" onerror="imgFallback(this,\'mi-noimg\')">' : '<div class="mi-noimg"></div>';
+  return img ? '<img loading="lazy" src="'+img+'" onerror="imgFallback(this,\'mi-noimg\')">' : '<div class="mi-noimg"></div>';
 }
 
 function padSlot(n){ return 'S-'+String(n).padStart(3,'0'); }
@@ -1248,7 +1251,7 @@ function renderFetchedPreview(warning){
   var box = document.getElementById('fetchedPreview');
   box.innerHTML =
     '<div style="margin-top:14px;">'+
-      (wizProduct.img ? '<img src="'+wizProduct.img+'" style="width:64px; height:64px; border-radius:9px; object-fit:cover; margin-bottom:12px;" onerror="this.style.display=\'none\'; document.getElementById(\'fetchImgWarn\').style.display=\'block\';">' : '')+
+      (wizProduct.img ? '<img loading="lazy" src="'+wizProduct.img+'" style="width:64px; height:64px; border-radius:9px; object-fit:cover; margin-bottom:12px;" onerror="this.style.display=\'none\'; document.getElementById(\'fetchImgWarn\').style.display=\'block\';">' : '')+
       (wizProduct.img ? '<div id="fetchImgWarn" class="hint" style="display:none; color:#C0392B; margin-bottom:10px;">' +
         '<span data-th>โหลดรูปไม่ได้ (ลิงก์อาจบล็อกการฝังจากเว็บอื่น) ลองใส่ลิงก์รูปอื่น</span>' +
         '<span data-en>Image failed to load (the source may block hotlinking) — try a different image URL</span></div>' : '')+
@@ -1322,7 +1325,7 @@ function backToTypeStep(){
 function renderProductMiniCard(targetId){
   var el = document.getElementById(targetId);
   el.innerHTML =
-    (wizProduct.img ? '<img src="'+wizProduct.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
+    (wizProduct.img ? '<img loading="lazy" src="'+wizProduct.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
     '<div><div class="pmc-name">'+wizProduct.name+'</div>'+(wizProduct.sku ? '<div class="pmc-sub">SKU · '+wizProduct.sku+'</div>' : '')+'</div>';
 }
 
@@ -1365,7 +1368,7 @@ function renderStep3ProductBox(){
   var el = document.getElementById('pmcBox2');
   var condLine = currentConditionLabel();
   el.innerHTML =
-    (wizProduct.img ? '<img src="'+wizProduct.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
+    (wizProduct.img ? '<img loading="lazy" src="'+wizProduct.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
     '<div><div class="pmc-name">'+wizProduct.name+'</div>'+
     (wizProduct.sku ? '<div class="pmc-sub">SKU · '+wizProduct.sku+'</div>' : '')+
     (condLine ? '<div class="pmc-sub">'+condLine+'</div>' : '')+
@@ -1540,6 +1543,30 @@ function getSoldElsewhere(excludeIdx){
   return {singleSoldDate:singleSoldDate, slotSoldDate:slotSoldDate};
 }
 
+function updateSlotCount(i){
+  var picker = document.getElementById('slotPicker-'+i);
+  if(!picker) return;
+  var selCount = picker.querySelectorAll('.slot-pill.selected').length;
+  var row = picker.closest('.sold-row');
+  var qty = +row.dataset.qty;
+  document.getElementById('soldChk-'+i).checked = selCount > 0;
+  document.getElementById('slotCount-'+i).childNodes[0].textContent = selCount + ' / ' + qty + ' ';
+}
+
+function selectAllAvailableSlots(i){
+  var picker = document.getElementById('slotPicker-'+i);
+  if(!picker) return;
+  picker.querySelectorAll('.slot-pill:not(.locked)').forEach(function(p){ p.classList.add('selected'); });
+  updateSlotCount(i);
+}
+
+function clearAllSlots(i){
+  var picker = document.getElementById('slotPicker-'+i);
+  if(!picker) return;
+  picker.querySelectorAll('.slot-pill.selected').forEach(function(p){ p.classList.remove('selected'); });
+  updateSlotCount(i);
+}
+
 function openSalesModal(idx){
   currentSalesSessionIdx = idx;
   var session = liveSessions[idx];
@@ -1561,7 +1588,7 @@ function openSalesModal(idx){
     row.dataset.uid = item.uid;
     row.dataset.qty = item.qty;
 
-    var thumb = item.img ? '<img src="'+item.img+'" onerror="imgFallback(this,\'sr-noimg\')">' : '<div class="sr-noimg"></div>';
+    var thumb = item.img ? '<img loading="lazy" src="'+item.img+'" onerror="imgFallback(this,\'sr-noimg\')">' : '<div class="sr-noimg"></div>';
     var subParts = [];
     if(item.sku) subParts.push('SKU · '+item.sku);
     if(item.condition) subParts.push(item.condition);
@@ -1588,7 +1615,10 @@ function openSalesModal(idx){
         '<div class="sr-info">'+
           '<div class="sr-name">'+item.label+(item.nonHit?' · non-hit':'')+'</div>'+
           (subLine ? '<div class="sr-sub">'+subLine+'</div>' : '')+
-          '<div class="sr-sub" id="slotCount-'+i+'">'+selectedSlots.length+' / '+item.qty+' <span data-th>ขายแล้ว</span><span data-en>sold</span></div>'+
+          '<div class="sr-sub" id="slotCount-'+i+'">'+selectedSlots.length+' / '+item.qty+' <span data-th>ขายแล้ว</span><span data-en>sold</span>'+
+            ' · <a href="javascript:void(0)" onclick="selectAllAvailableSlots('+i+')"><span data-th>เลือกทั้งหมด</span><span data-en>Select all</span></a>'+
+            ' · <a href="javascript:void(0)" onclick="clearAllSlots('+i+')"><span data-th>ล้าง</span><span data-en>Clear</span></a>'+
+          '</div>'+
           '<div class="slot-picker" id="slotPicker-'+i+'"></div>'+
         '</div>'+
         '<div class="sr-price">'+fmtPrice(item.price)+'</div>';
@@ -1833,7 +1863,7 @@ function showSellerPage(entry){
     item.className = 'item';
     item.innerHTML =
       '<div class="item-top">'+
-        (e.img ? '<img src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
+        (e.img ? '<img loading="lazy" src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
         '<span class="item-badge">'+rangeLabel+'</span>'+
         '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
         '<div class="item-price">'+fmt(e.price)+' × '+e.qty+'</div>'+
@@ -2177,7 +2207,7 @@ function exportSummaryCSV(){
 }
 
 function editBoard(boardId){
-  location.href = 'admin.html?edit=' + encodeURIComponent(boardId) + '&t=' + Date.now();
+  location.href = 'admin.html?edit=' + encodeURIComponent(boardId);
 }
 
 function deleteBoardConfirm(boardId){
