@@ -124,10 +124,13 @@
 
   .section-block{border:1px solid var(--gray-line); border-radius:16px; margin-bottom:16px; overflow:hidden;}
   .section-block .section-row{border:none; border-radius:0; margin-bottom:0;}
-  .mini-item-list{padding:0 16px 16px;}
+  .mini-item-list{padding:0 16px 16px; min-height:64px;}
+  .mini-item-list-empty{border:2px dashed var(--gray-line); border-radius:12px; padding:20px; text-align:center; color:var(--sub); font-size:12.5px;}
   .mini-item-list:empty{display:none;}
   .mini-item{display:flex; align-items:center; gap:10px; background:var(--gray-bg); border-radius:10px; padding:8px 12px; margin-top:8px; font-size:13px;}
   .mini-item.drag-over{outline:2px dashed var(--dark); outline-offset:-2px;}
+  .mini-item-list.drag-over-container{outline:2px dashed var(--dark); outline-offset:-4px; border-radius:12px;}
+  .mini-item-list-empty.drag-over-container{border-color:var(--dark); color:var(--dark);}
   .mi-drag{color:#B5B5B5; cursor:grab; font-size:16px; flex-shrink:0; line-height:1;}
   .mini-item img{width:32px; height:32px; border-radius:7px; object-fit:cover; flex-shrink:0; background:#fff;}
   .mini-item .mi-noimg{width:32px; height:32px; border-radius:7px; background:#E2E2E2; flex-shrink:0;}
@@ -1039,6 +1042,9 @@ function renderMiniLists(){
 
   var hitWrap = document.getElementById('hitItemList');
   hitWrap.innerHTML = '';
+  if(!hitItems.length){
+    hitWrap.innerHTML = '<div class="mini-item-list-empty"><span data-th>ลากรายการมาวางที่นี่</span><span data-en>Drag an item here</span></div>';
+  }
   hitItems.forEach(function(item, i){
     var slot = slotMap[item.uid];
     var qty = item.qty || 1;
@@ -1064,6 +1070,9 @@ function renderMiniLists(){
 
   var nhWrap = document.getElementById('nonHitItemList');
   nhWrap.innerHTML = '';
+  if(!nonHitItems.length){
+    nhWrap.innerHTML = '<div class="mini-item-list-empty"><span data-th>ลากรายการมาวางที่นี่</span><span data-en>Drag an item here</span></div>';
+  }
   nonHitItems.forEach(function(item, i){
     var slot = slotMap[item.uid];
     var slotBadge = slot ? (slot.qty === 1 ? padSlot(slot.start) : padSlot(slot.start)+' – '+padSlot(slot.end)) : '';
@@ -1097,6 +1106,8 @@ function renderMiniLists(){
     d2.innerHTML = '<span class="mi-drag">⠿</span><div style="flex:1; min-width:0;"><div class="mi-name">'+lastOneItem.name+'</div></div><div class="mi-price">'+fmt(lastOneItem.price)+'</div><span class="mi-remove" onclick="removeLastOne()">×</span>';
     attachDragHandlers(d2, 'lastone');
     loWrap.appendChild(d2);
+  } else {
+    loWrap.innerHTML = '<div class="mini-item-list-empty"><span data-th>ลากรายการมาวางที่นี่</span><span data-en>Drag an item here</span></div>';
   }
   document.getElementById('lastOneCount').textContent = lastOneItem ? 1 : 0;
 }
@@ -1143,9 +1154,13 @@ function attachDragHandlers(el, listName){
 // item) in a list still works, and so dragging onto a completely empty list
 // has somewhere to land.
 function attachContainerDropHandlers(el, listName){
-  el.addEventListener('dragover', function(e){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+  el.addEventListener('dragover', function(e){ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; el.classList.add('drag-over-container'); });
+  el.addEventListener('dragleave', function(e){ if(e.target === el) el.classList.remove('drag-over-container'); });
   el.addEventListener('drop', function(e){
-    if(e.target !== el) return; // a child item's own drop handler already dealt with it
+    el.classList.remove('drag-over-container');
+    // A drop on an actual mini-item is handled by that item's own listener,
+    // which calls stopPropagation() so it never reaches here — so anything
+    // that does reach this handler is a genuine empty-space / placeholder drop.
     e.preventDefault();
     if(dragSrcList === null) return;
     if(dragSrcList === listName){
