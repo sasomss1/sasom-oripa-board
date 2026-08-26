@@ -361,7 +361,10 @@
   <div class="card">
     <div class="card-head-row">
       <h2><span data-th>ข้อมูลบอร์ด</span><span data-en>Board Info</span></h2>
-      <button class="change-btn" onclick="openCsvImportModal()"><span data-th>นำเข้าจาก CSV</span><span data-en>Import from CSV</span></button>
+      <div style="display:flex; gap:8px;">
+        <button class="change-btn" onclick="exportCurrentFormCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+        <button class="change-btn" onclick="openCsvImportModal()"><span data-th>นำเข้าจาก CSV</span><span data-en>Import from CSV</span></button>
+      </div>
     </div>
 
     <div class="field">
@@ -585,6 +588,7 @@
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="change-btn" onclick="repairAllBoardStats()"><span data-th>ซ่อมตัวเลข Hit/Non-hit</span><span data-en>Repair Hit/Non-hit counts</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -901,6 +905,26 @@ function downloadCSV(filename, rows){
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Exports whatever is currently in the form right now (even if not yet
+// Confirmed/saved) — useful for reviewing or backing up a work-in-progress
+// board, including one that was just brought in via CSV import.
+function exportCurrentFormCSV(){
+  var boardName = document.getElementById('boardName').value.trim() || 'board';
+  var stats = recalc();
+  var entry = {
+    boardName: boardName,
+    sellerEmail: currentSellerEmail || '',
+    status: boardStatus,
+    sellerFeePct: sellerFeePct,
+    stats: stats,
+    entriesSnapshot: getCombinedEntries(),
+    lastOneSnapshot: lastOneItem,
+    liveSessions: liveSessions
+  };
+  var safeName = boardName.replace(/[^a-z0-9]+/gi,'-');
+  downloadCSV(safeName + '.csv', boardToCSVRows(entry));
 }
 
 function boardToCSVRows(entry){
@@ -2150,6 +2174,44 @@ function exportBoardsFullDetail(list, filename){
 function exportAllBoardsFullDetail(){
   if(!savedBoards.length){ alert('No boards to export / ยังไม่มีบอร์ดให้ส่งออก'); return; }
   exportBoardsFullDetail(savedBoards, 'all-boards-full-detail.csv');
+}
+
+// Boards saved before the Hit/Non-hit counting fix have a stale hitCount /
+// nonHitCount baked into their stored stats. This recomputes both from each
+// board's own entriesSnapshot (which was always correct — only the cached
+// summary numbers were wrong) and re-saves any board that's out of date,
+// without needing to open and re-Confirm each one by hand.
+function repairAllBoardStats(){
+  if(!savedBoards.length){ alert('No boards loaded yet / ยังไม่มีข้อมูลบอร์ด'); return; }
+  var toFix = [];
+  savedBoards.forEach(function(b){
+    var entries = b.entriesSnapshot || [];
+    var correctHit = 0, correctNonHit = 0;
+    entries.forEach(function(e){ if(e.nonHit) correctNonHit += e.qty; else correctHit += e.qty; });
+    if(b.stats.hitCount !== correctHit || b.stats.nonHitCount !== correctNonHit){
+      var fixedBoard = JSON.parse(JSON.stringify(b));
+      fixedBoard.stats.hitCount = correctHit;
+      fixedBoard.stats.nonHitCount = correctNonHit;
+      toFix.push(fixedBoard);
+    }
+  });
+
+  if(!toFix.length){ alert('All boards already have correct Hit/Non-hit counts / ทุกบอร์ดมีตัวเลขถูกต้องอยู่แล้ว'); return; }
+  if(!confirm('Found ' + toFix.length + ' board(s) with outdated Hit/Non-hit counts. Fix them now?\nพบ ' + toFix.length + ' บอร์ดที่ตัวเลขไม่ถูกต้อง แก้ไขตอนนี้เลยไหม?')) return;
+
+  document.getElementById('boardsListSyncStatus').innerHTML = '<span class="inline-loading"><span class="inline-spinner"></span>Repairing ' + toFix.length + ' board(s)...</span>';
+
+  var requests = toFix.map(function(b){
+    return fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'saveBoard', board: b }) }).then(function(r){ return r.json(); });
+  });
+
+  Promise.all(requests).then(function(results){
+    var okCount = results.filter(function(r){ return r.ok; }).length;
+    document.getElementById('boardsListSyncStatus').textContent = 'Repaired ' + okCount + ' of ' + toFix.length + ' board(s).';
+    fetchAllBoardsFromServer().then(function(){ renderBoardsList(); });
+  }).catch(function(err){
+    document.getElementById('boardsListSyncStatus').textContent = 'Repair failed: ' + err.message;
+  });
 }
 
 function renderBoardsList(){
