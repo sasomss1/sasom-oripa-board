@@ -862,8 +862,8 @@ var sellerEmailsDefault = [
   'invencollectible@gmail.com','sasominven@gmail.com','preorderdefect@gmail.com',
   'siamdoxa@gmail.com','kenyu.kim0131@gmail.com','poom_jiraroj@hotmail.com',
   'siravit.p@sasom.co.th','g.lertkom@gmail.com','bosskungjr@gmail.com'
-];
-var sellerEmails = sellerEmailsDefault.slice(); // synced with the backend once fetchSellerEmailsFromServer() runs
+]; // kept only as a reference; no longer auto-added — see fetchSellerEmailsFromServer()
+var sellerEmails = []; // populated from the backend (added emails) + board-derived emails once loaded
 var currentSellerEmail = null;
 var savedBoards = []; // {sellerEmail, boardName, stats, entriesSnapshot, lastOneSnapshot, status, liveSessions}
 var boardStatus = 'PREPARE'; // 'PREPARE' | 'ON' | 'OFF'
@@ -1270,6 +1270,23 @@ function pickColor(hex, nameTh, nameEn){
 }
 
 // ============== SELLER PICKER ==============
+// Makes sure every email that already has at least one board (even if it was
+// never explicitly "added" via the picker — e.g. an older board from before
+// this list was persisted) shows up as a selectable option too.
+function syncSellerEmailsWithBoards(){
+  var added = false;
+  savedBoards.forEach(function(b){
+    if(b.sellerEmail && sellerEmails.indexOf(b.sellerEmail) === -1){
+      sellerEmails.push(b.sellerEmail);
+      added = true;
+    }
+  });
+  if(added){
+    buildSellerOptions();
+    saveSellerEmailsToServer();
+  }
+}
+
 function buildSellerOptions(){
   var wrap = document.getElementById('sellerOptionList');
   wrap.innerHTML = '';
@@ -1325,17 +1342,16 @@ function fetchSellerEmailsFromServer(){
   return fetch(API_URL + '?action=getSellerEmails')
     .then(function(r){ return r.json(); })
     .then(function(res){
-      if(res.ok && res.emails && res.emails.length){
-        sellerEmails = res.emails;
+      if(res.ok){
+        // Only ever show emails that were explicitly added (persisted on the
+        // backend) or that already have a board — no hardcoded placeholder
+        // list. If the backend has none yet, syncSellerEmailsWithBoards()
+        // (called after boards load) will pick up any board-derived emails.
+        sellerEmails = res.emails || [];
         buildSellerOptions();
-      } else if(res.ok){
-        // Sheet is empty (first time) — seed it with the built-in defaults
-        sellerEmails = sellerEmailsDefault.slice();
-        buildSellerOptions();
-        saveSellerEmailsToServer();
       }
     })
-    .catch(function(){ /* keep the built-in defaults if the fetch fails */ });
+    .catch(function(){ /* keep whatever was already in sellerEmails if the fetch fails */ });
 }
 
 function saveSellerEmailsToServer(){
@@ -2898,6 +2914,7 @@ if(viewParam === 'summary'){
 }
 
 fetchAllBoardsFromServer().then(function(){
+  syncSellerEmailsWithBoards();
   if(viewParam === 'boards'){
     renderBoardsList();
   }
