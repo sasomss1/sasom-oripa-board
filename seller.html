@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SASOM Oripa Board - Seller Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --dark:#1B1B1B;
@@ -16,6 +16,11 @@
   }
   *{box-sizing:border-box;}
   button{-webkit-appearance:none; appearance:none; color:inherit; font-family:inherit;}
+  /* Smooth motion on every interactive control, matching the toggle switch's feel */
+  button, .toggle-pill .opt, .board-row, .seller-pill{
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, opacity .15s ease, transform .1s ease;
+  }
+  button:active{ transform:scale(0.97); }
   body{margin:0; font-family:'Inter','Noto Sans Thai',sans-serif; color:var(--dark); background:#F7F7F7; padding:24px; display:flex; justify-content:center;}
   .modal{width:100%; max-width:760px; background:#fff; border-radius:20px; padding:32px 36px 36px; box-shadow:0 10px 40px rgba(0,0,0,.08);}
   .modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:20px;}
@@ -444,7 +449,7 @@ function renderBoard(){
     var startSlot = slotNo; slotNo += e.qty; var endSlot = slotNo - 1;
     var rangeLabel = e.qty === 1 ? ('S-'+String(startSlot).padStart(3,'0')) : ('S-'+String(startSlot).padStart(3,'0')+' – S-'+String(endSlot).padStart(3,'0'));
     html += '<div class="item"><div class="item-top">'+
-      (e.img ? '<img src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
+      (e.img ? '<img loading="lazy" src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
       '<span class="item-badge">'+rangeLabel+'</span>'+
       '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
       '<div class="item-price">'+fmtPrice(e.price)+' × '+e.qty+'</div>'+
@@ -494,11 +499,11 @@ function renderBoard(){
       } else {
         html += '<div class="item-list" style="margin-top:10px;">';
         soldItems.forEach(function(r){
-          var entry = entryMap[r.label] || {};
-          var badgeNums = r.slots ? r.slots : (slotMap[r.label] ? [slotMap[r.label].start] : []);
+          var entry = entryMap[r.uid || r.label] || {};
+          var badgeNums = r.slots ? r.slots : (slotMap[r.uid || r.label] ? [slotMap[r.uid || r.label].start] : []);
           var badgesHtml = badgeNums.map(function(n){ return '<span class="item-badge">S-'+String(n).padStart(3,'0')+'</span>'; }).join('');
           html += '<div class="item"><div class="item-top">'+
-            (entry.img ? '<img src="'+entry.img+'" onerror="this.style.display=\'none\';">' : '')+
+            (entry.img ? '<img loading="lazy" src="'+entry.img+'" onerror="this.style.display=\'none\';">' : '')+
             '<div class="item-badges">'+badgesHtml+'</div>'+
             '<div class="item-info"><div class="item-name">'+r.label+'</div><div class="item-sub">'+(entry.condition||'')+'</div></div>'+
             '<div class="item-price">'+fmtPrice(entry.price)+' × '+r.qty+'</div>'+
@@ -516,6 +521,11 @@ function renderBoard(){
   html += '</div>';
 
   html += '<div class="card"><h2><span data-th>สรุปยอดจ่ายรวม</span><span data-en>Payment Summary</span></h2>'+
+    '<div class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:10px;">'+
+      '<div class="stat-card"><div class="l"><span data-th>ไลฟ์ไปแล้ว (ครั้ง)</span><span data-en>Total live sessions</span></div><div class="v">'+sessions.length+'</div></div>'+
+      '<div class="stat-card"><div class="l"><span data-th>ไลฟ์ครั้งแรก</span><span data-en>First live</span></div><div class="v">'+(sessions.length ? formatDateDMY(sessions[0].date) : '—')+'</div></div>'+
+      '<div class="stat-card"><div class="l"><span data-th>ไลฟ์ล่าสุด</span><span data-en>Latest live</span></div><div class="v">'+(sessions.length ? formatDateDMY(sessions[sessions.length-1].date) : '—')+'</div></div>'+
+    '</div>'+
     '<div class="stat-grid">'+
       '<div class="stat-card"><div class="l"><span data-th>ช่องขายไปแล้วรวม</span><span data-en>Total spots sold</span></div><div class="v">'+totalSpotsSold+'</div></div>'+
       '<div class="stat-card"><div class="l"><span data-th>ยอดขายรวม</span><span data-en>Total sale value</span></div><div class="v">'+fmt(totalSaleValue)+'</div></div>'+
