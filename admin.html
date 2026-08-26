@@ -285,10 +285,10 @@
   .board-row{border:1px solid var(--gray-line); border-radius:14px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px;}
   .boards-filter-row{display:flex; align-items:flex-end; gap:14px; margin-bottom:18px; flex-wrap:wrap;}
   .boards-filter-row input{margin-bottom:0;}
-  .board-group-header{font-weight:600; font-size:14px; color:var(--sub); margin:20px 0 8px; padding-bottom:6px; border-bottom:1px solid var(--gray-line);}
+  .board-group-header{font-weight:600; font-size:14px; color:var(--sub); margin:14px 0 6px; padding-bottom:6px; border-bottom:1px solid var(--gray-line);}
   .board-group-header:first-child{margin-top:0;}
   .board-row-main{flex:1; min-width:0;}
-  .board-row-title{display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px;}
+  .board-row-title{display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px; flex-wrap:wrap;}
   .board-row-sub{font-size:12.5px; color:var(--sub); margin-top:2px;}
   .board-row-stats{display:flex; gap:20px; font-size:12.5px; color:var(--sub); flex-shrink:0;}
   .board-row-stats > div{width:96px; flex-shrink:0;}
@@ -311,8 +311,9 @@
     .stat-grid{ grid-template-columns:repeat(2,1fr); }
     .live-pay-grid{ grid-template-columns:1fr; }
     .live-pay-status-row{ justify-content:flex-start; }
-    .board-row{ flex-direction:column; align-items:flex-start; }
-    .board-row-stats{ flex-wrap:wrap; row-gap:10px; width:100%; }
+    .board-row{ flex-direction:column; align-items:flex-start; gap:12px; }
+    .board-row-stats{ flex-wrap:wrap; row-gap:10px; column-gap:16px; width:100%; }
+    .board-row-stats > div{ width:auto; min-width:70px; }
     .board-row-actions{ width:100%; justify-content:flex-end; }
     .boards-filter-row{ flex-direction:column; align-items:stretch; }
     .boards-filter-row .toggle-pill{ align-self:flex-start; }
@@ -324,9 +325,22 @@
     .summary-counts{ flex-direction:column; }
     .item-top{ flex-wrap:wrap; }
   }
+
+  #loadingOverlay{position:fixed; inset:0; background:rgba(247,247,247,.92); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;}
+  #loadingOverlay.hidden{display:none;}
+  .loading-spinner{width:38px; height:38px; border-radius:50%; border:3px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite;}
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .loading-text{font-size:13.5px; color:var(--sub); font-weight:500;}
+  .inline-loading{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--sub);}
+  .inline-spinner{width:14px; height:14px; border-radius:50%; border:2px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite; flex-shrink:0;}
 </style>
 </head>
 <body>
+
+<div id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text"><span data-th>กำลังโหลดข้อมูล...</span><span data-en>Loading data...</span></div>
+</div>
 
 <div class="modal" id="formView">
   <div id="sellerSwitcher" style="display:none;"></div>
@@ -793,11 +807,6 @@
       <span class="close-x" onclick="closePicker('csvImportOverlay')">✕</span>
     </div>
 
-    <p class="hint" style="margin-bottom:16px;">
-      <span data-th>ใช้คอลัมน์: No, Product, SKU, Nick Name, Condition, Price, SASOM Link, IMG Link, Sold, Date — แถวที่ไม่มีชื่อ Product จะถูกรวมเป็น "ไม่ฮิต" อัตโนมัติ (นับจำนวนจากแถวที่ Condition+ราคาเหมือนกันติดกัน)</span>
-      <span data-en>Uses columns: No, Product, SKU, Nick Name, Condition, Price, SASOM Link, IMG Link, Sold, Date — rows with no Product name are auto-grouped as "non-hit" (counted from consecutive rows sharing the same Condition+Price)</span>
-    </p>
-
     <div class="row2">
       <div class="field">
         <label><span data-th>ชื่อบอร์ด</span><span data-en>Board name</span></label>
@@ -819,26 +828,8 @@
     </div>
 
     <div class="field">
-      <label><span data-th>ปีของวันที่ (กรณีในไฟล์ไม่มีปี เช่น "24 Aug")</span><span data-en>Year for dates without one (e.g. "24 Aug")</span></label>
-      <input type="number" id="csvDateYear" value="2026">
-    </div>
-
-    <div class="field">
       <label><span data-th>จำนวนรายการฮิต (ไม่บังคับ)</span><span data-en>Number of hit rows (optional)</span></label>
       <input type="number" id="csvHitCutoff" placeholder="">
-      <div class="hint" style="margin-top:6px;">
-        <span data-th>ถ้ารู้จำนวนแถวที่ไฮไลต์สีในชีตต้นฉบับ ใส่ตัวเลขตรงนี้ (แถวที่เหลือจะถูกจัดเป็นไม่ฮิตทั้งหมด) — ถ้าเว้นว่างไว้ ระบบจะเดาให้อัตโนมัติจากด้านล่าง</span>
-        <span data-en>If you know the number of highlighted rows in the source sheet, enter it here (everything else becomes non-hit). Leave blank to auto-detect using the setting below.</span>
-      </div>
-    </div>
-
-    <div class="field">
-      <label><span data-th>ของซ้ำกันตั้งแต่กี่ใบขึ้นไปถือเป็นไม่ฮิต (สำหรับ auto-detect)</span><span data-en>Repeat count that counts as non-hit (for auto-detect)</span></label>
-      <input type="number" id="csvNonHitThreshold" value="5">
-      <div class="hint" style="margin-top:6px;">
-        <span data-th>ใช้เฉพาะตอนเว้นช่อง "จำนวนรายการฮิต" ไว้ — SKU ที่ซ้ำน้อยกว่าตัวเลขนี้ (เช่น มี 2-3 ใบ) จะยังถือเป็นฮิต ซ้ำเยอะกว่านี้ถือเป็นไม่ฮิต</span>
-        <span data-en>Only used when "Number of hit rows" is left blank — a SKU repeating fewer times than this (e.g. 2-3 copies) still counts as a Hit; repeating this many times or more counts as Non-hit</span>
-      </div>
     </div>
 
     <div class="field">
@@ -1912,8 +1903,13 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbwUZdHBcNITE9ds3nQsendjXf
 
 function apiConfigured(){ return API_URL && API_URL.indexOf('http') === 0; }
 
-function setSyncStatus(text){
-  document.getElementById('syncStatus').textContent = text;
+function setSyncStatus(text, loading){
+  var el = document.getElementById('syncStatus');
+  if(loading){
+    el.innerHTML = '<span class="inline-loading"><span class="inline-spinner"></span>'+text+'</span>';
+  } else {
+    el.textContent = text;
+  }
 }
 
 function fetchAllBoardsFromServer(){
@@ -1921,7 +1917,7 @@ function fetchAllBoardsFromServer(){
     setSyncStatus('API_URL ยังไม่ได้ตั้งค่า — แก้ตัวแปร API_URL ในไฟล์นี้ก่อน / API_URL not set — edit the API_URL variable in this file first');
     return Promise.resolve();
   }
-  setSyncStatus('กำลังซิงก์... / Syncing...');
+  setSyncStatus('กำลังซิงก์... / Syncing...', true);
   return fetch(API_URL + '?action=getAll')
     .then(function(r){ return r.json(); })
     .then(function(res){
@@ -2501,9 +2497,7 @@ var parsedCsvImport = null; // {hitItems, nonHitItems, liveSessions, hitCount, n
 function openCsvImportModal(){
   document.getElementById('csvBoardName').value = document.getElementById('boardName').value || '';
   document.getElementById('csvPricePerSpot').value = document.getElementById('pricePerSpot').value || '';
-  document.getElementById('csvDateYear').value = new Date().getFullYear();
   document.getElementById('csvHitCutoff').value = '';
-  document.getElementById('csvNonHitThreshold').value = 5;
   document.getElementById('csvFileInput').value = '';
   document.getElementById('csvPreviewBox').innerHTML = '';
   csvStatus = 'PREPARE';
@@ -2578,9 +2572,9 @@ function onCsvFileChosen(event){
   var reader = new FileReader();
   reader.onload = function(e){
     try{
-      var year = +document.getElementById('csvDateYear').value || new Date().getFullYear();
+      var year = new Date().getFullYear();
       var hitCutoff = +document.getElementById('csvHitCutoff').value || 0;
-      var nonHitThreshold = +document.getElementById('csvNonHitThreshold').value || 5;
+      var nonHitThreshold = 5;
       var result = parseCsvImportData(e.target.result, year, hitCutoff, nonHitThreshold);
       parsedCsvImport = result;
       renderCsvPreview(result);
@@ -2846,6 +2840,7 @@ fetchAllBoardsFromServer().then(function(){
     var match = savedBoards.find(function(b){ return b.boardId === editParam; });
     if(match) loadBoardIntoForm(match);
   }
+  document.getElementById('loadingOverlay').classList.add('hidden');
 });
 
 // Guard against the browser restoring a stale, already-edited state from
