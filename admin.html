@@ -819,6 +819,20 @@
     </div>
 
     <div class="field">
+      <label><span data-th>ปีของวันที่ (กรณีในไฟล์ไม่มีปี เช่น "24 Aug")</span><span data-en>Year for dates without one (e.g. "24 Aug")</span></label>
+      <input type="number" id="csvDateYear" value="2026">
+    </div>
+
+    <div class="field">
+      <label><span data-th>จำนวนรายการฮิต (ไม่บังคับ)</span><span data-en>Number of hit rows (optional)</span></label>
+      <input type="number" id="csvHitCutoff" placeholder="">
+      <div class="hint" style="margin-top:6px;">
+        <span data-th>ถ้ารู้จำนวนแถวที่ไฮไลต์สีในชีตต้นฉบับ ใส่ตัวเลขตรงนี้ (แถวที่เหลือจะถูกจัดเป็นไม่ฮิตทั้งหมด) — ถ้าเว้นว่างไว้ ระบบจะเดาให้อัตโนมัติ: ของที่ไม่ซ้ำใครหรือราคาสูงกว่าค่ากลาง = ฮิต, ของราคาต่ำที่ซ้ำกันเยอะ = ไม่ฮิต</span>
+        <span data-en>If you know the number of highlighted rows in the source sheet, enter it here (everything else becomes non-hit). Leave blank to auto-detect: unique or above-median-price items become Hit, low-value repeated items become Non-hit.</span>
+      </div>
+    </div>
+
+    <div class="field">
       <label><span data-th>ไฟล์ CSV</span><span data-en>CSV file</span></label>
       <input type="file" id="csvFileInput" accept=".csv" onchange="onCsvFileChosen(event)">
     </div>
@@ -2363,6 +2377,8 @@ var parsedCsvImport = null; // {hitItems, nonHitItems, liveSessions, hitCount, n
 function openCsvImportModal(){
   document.getElementById('csvBoardName').value = document.getElementById('boardName').value || '';
   document.getElementById('csvPricePerSpot').value = document.getElementById('pricePerSpot').value || '';
+  document.getElementById('csvDateYear').value = new Date().getFullYear();
+  document.getElementById('csvHitCutoff').value = '';
   document.getElementById('csvFileInput').value = '';
   document.getElementById('csvPreviewBox').innerHTML = '';
   csvStatus = 'PREPARE';
@@ -2403,10 +2419,24 @@ function parseCSV(text){
   return rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ''; }); });
 }
 
-function normalizeDate(str){
+function normalizeDate(str, assumedYear){
   str = (str||'').trim();
   if(!str) return '';
   if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  var monthNames = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  // Handles "24 Aug" / "24 Aug 2026" / "Aug 24" — the common exported formats
+  // that lack a year, which native Date() parses into the wrong year silently.
+  var m = str.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s*(\d{4})?$/) || str.match(/^([A-Za-z]{3,})\s+(\d{1,2})\s*,?\s*(\d{4})?$/);
+  if(m){
+    var day, monKey;
+    if(/^\d/.test(m[1])){ day = +m[1]; monKey = m[2].slice(0,3).toLowerCase(); }
+    else { monKey = m[1].slice(0,3).toLowerCase(); day = +m[2]; }
+    var mon = monthNames[monKey];
+    var year = m[3] ? +m[3] : (assumedYear || new Date().getFullYear());
+    if(mon && day){
+      return year + '-' + String(mon).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    }
+  }
   var d = new Date(str);
   if(isNaN(d.getTime())) return '';
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -2423,7 +2453,9 @@ function onCsvFileChosen(event){
   var reader = new FileReader();
   reader.onload = function(e){
     try{
-      var result = parseCsvImportData(e.target.result);
+      var year = +document.getElementById('csvDateYear').value || new Date().getFullYear();
+      var hitCutoff = +document.getElementById('csvHitCutoff').value || 0;
+      var result = parseCsvImportData(e.target.result, year, hitCutoff);
       parsedCsvImport = result;
       renderCsvPreview(result);
       var btn = document.getElementById('csvImportConfirmBtn');
@@ -2435,7 +2467,12 @@ function onCsvFileChosen(event){
   reader.readAsText(file);
 }
 
-function parseCsvImportData(text){
+// Hit vs non-hit is decided purely by row position: the first "hitCutoff" data
+// rows (matching the highlighted rows in the source sheet) become individual
+// Hit entries; every row after that becomes Non-hit, grouped by matching
+// Product+SKU+Condition+Price so genuine duplicates collapse into one entry
+// with Qty>1 (unique non-hit rows just end up as their own Qty=1 entry).
+function parseCsvImportData(text, assumedYear, hitCutoff){
   var table = parseCSV(text);
   if(!table.length) throw new Error('Empty file');
   var header = table[0].map(function(h){ return h.trim().toLowerCase(); });
@@ -2445,30 +2482,14 @@ function parseCsvImportData(text){
     condition: col('condition'), price: col('price'), sasomLink: col('sasom link'),
     imgLink: col('img link'), sold: col('sold'), date: col('date')
   };
+  if(idx.condition < 0 || idx.price < 0) throw new Error('CSV is missing required "Condition" or "Price" columns');
 
-  var hitItems = [], nonHitItems = [];
-  var soldEvents = []; // {uid, isNonHit, date} — one per physical unit, used to build live sessions
-  var pendingGroup = null; // {key, entry, count, units:[{sold,date}]}
+  var groups = {}; // key -> {name, sku, img, condition, price, units:[{sold,date}]}
+  var order = [];
+  var hitRows = []; // used only in cutoff mode: individual hit rows, in order, never merged
+  var useCutoff = hitCutoff > 0;
 
-  function flushGroup(){
-    if(!pendingGroup) return;
-    var uid = genUid();
-    nonHitItems.push({
-      uid: uid,
-      name: pendingGroup.entry.name,
-      sku: pendingGroup.entry.sku,
-      img: pendingGroup.entry.img,
-      condition: pendingGroup.entry.condition,
-      isRaw: pendingGroup.entry.condition === 'Raw',
-      price: pendingGroup.entry.price,
-      qty: pendingGroup.units.length
-    });
-    pendingGroup.units.forEach(function(u){
-      if(u.sold && u.date) soldEvents.push({uid: uid, isNonHit: true, date: u.date});
-    });
-    pendingGroup = null;
-  }
-
+  var dataRowIndex = 0; // counts only real data rows (1-based), used against hitCutoff
   for(var r = 1; r < table.length; r++){
     var row = table[r];
     var get = function(i){ return i >= 0 && row[i] != null ? row[i].trim() : ''; };
@@ -2479,27 +2500,73 @@ function parseCsvImportData(text){
     var price = +get(idx.price).replace(/[^0-9.\-]/g,'') || 0;
     var imgLink = get(idx.imgLink);
     var sold = isSoldValue(get(idx.sold));
-    var date = normalizeDate(get(idx.date));
+    var date = normalizeDate(get(idx.date), assumedYear);
 
-    if(product){
-      flushGroup();
-      var name = nickname ? (product + ' (' + nickname + ')') : product;
-      var uid = genUid();
-      hitItems.push({uid:uid, name:name, sku:sku, img:imgLink, condition:condition, price:price});
-      if(sold && date) soldEvents.push({uid:uid, isNonHit:false, date:date});
+    if(!product && !condition && !price) continue; // skip fully blank rows
+
+    dataRowIndex++;
+    var name = nickname ? (product ? (product + ' (' + nickname + ')') : nickname) : (product || condition || 'Item');
+
+    if(useCutoff && dataRowIndex <= hitCutoff){
+      hitRows.push({name:name, sku:sku, img:imgLink, condition:condition, price:price, sold:sold, date:date});
     } else {
-      var key = condition + '|' + price;
-      if(pendingGroup && pendingGroup.key !== key) flushGroup();
-      if(!pendingGroup){
-        pendingGroup = {key:key, entry:{name: nickname || condition || 'Non-hit item', sku:sku, img:imgLink, condition:condition, price:price}, units:[]};
+      // Auto-detect mode (no cutoff given) groups EVERY row by signature first;
+      // cutoff mode only groups rows past the cutoff. Either way, matching
+      // duplicates collapse into one entry here — classification happens below.
+      var key = name + '|' + sku + '|' + condition + '|' + price;
+      if(!groups[key]){
+        groups[key] = {name:name, sku:sku, img:imgLink, condition:condition, price:price, units:[]};
+        order.push(key);
+      } else if(!groups[key].img && imgLink){
+        groups[key].img = imgLink; // fill in image from a later duplicate row if the first was blank
       }
-      pendingGroup.units.push({sold:sold, date:date});
+      groups[key].units.push({sold:sold, date:date});
     }
   }
-  flushGroup();
 
-  // Build absolute slot numbers in the same order the rest of the app uses (hits, then non-hits)
-  var slotOf = {}; // uid -> array of absolute slot numbers this uid occupies
+  var hitItems = [], nonHitItems = [];
+  var soldByUid = {}; // uid -> array of {sold,date} per physical unit, in original row order
+
+  // Cutoff mode: hit rows are individual entries, in original order, never merged
+  hitRows.forEach(function(hr){
+    var uid = genUid();
+    hitItems.push({uid:uid, name:hr.name, sku:hr.sku, img:hr.img, condition:hr.condition, price:hr.price});
+    soldByUid[uid] = [{sold:hr.sold, date:hr.date}];
+  });
+
+  // Auto-detect mode: a group with qty===1 is always a Hit. A group repeated
+  // more than once is a Hit only if its price is ABOVE the median price
+  // across all groups (i.e. still a relatively premium item even though it
+  // repeats a couple of times) — otherwise it's bulk filler → Non-hit.
+  // In cutoff mode, everything reaching this point is already past the
+  // cutoff, so it's simply grouped as Non-hit regardless of price.
+  var medianPrice = 0;
+  if(!useCutoff){
+    var prices = order.map(function(k){ return groups[k].price; }).sort(function(a,b){ return a-b; });
+    medianPrice = prices.length ? prices[Math.floor((prices.length-1)/2)] : 0;
+  }
+
+  order.forEach(function(key){
+    var g = groups[key];
+    var isHitGroup = !useCutoff && (g.units.length === 1 || g.price > medianPrice);
+    if(isHitGroup){
+      // Premium item that happens to repeat a couple of times — keep each
+      // physical copy as its own individual Hit entry rather than merging.
+      g.units.forEach(function(u){
+        var hUid = genUid();
+        hitItems.push({uid:hUid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, price:g.price});
+        soldByUid[hUid] = [{sold:u.sold, date:u.date}];
+      });
+      return;
+    }
+    var uid = genUid();
+    nonHitItems.push({uid:uid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, isRaw:g.condition==='Raw', price:g.price, qty:g.units.length});
+    soldByUid[uid] = g.units.map(function(u){ return {sold:u.sold, date:u.date}; });
+  });
+
+  // Assign absolute slot numbers the same way the rest of the app does:
+  // all Hit items first (in order), then all Non-hit items (in order).
+  var slotOf = {};
   var slotNo = 1;
   hitItems.forEach(function(h){ slotOf[h.uid] = [slotNo]; slotNo++; });
   nonHitItems.forEach(function(n){
@@ -2508,27 +2575,35 @@ function parseCsvImportData(text){
     slotOf[n.uid] = arr;
   });
 
-  // Group sold events by date into live sessions
-  var byDate = {};
-  var nonHitSlotCursor = {}; // uid -> how many of its slots have been consumed by sold events so far, in row order
-  soldEvents.forEach(function(ev){
-    if(!byDate[ev.date]) byDate[ev.date] = {};
-    if(!byDate[ev.date][ev.uid]) byDate[ev.date][ev.uid] = 0;
-    byDate[ev.date][ev.uid]++;
+  // Now that slots are correctly numbered, build sold events per date
+  var soldEvents = []; // {uid, date, unitIndex}
+  Object.keys(soldByUid).forEach(function(uid){
+    soldByUid[uid].forEach(function(u, i){
+      if(u.sold && u.date) soldEvents.push({uid:uid, date:u.date, unitIndex:i});
+    });
   });
 
+  var byDate = {};
+  soldEvents.forEach(function(ev){
+    if(!byDate[ev.date]) byDate[ev.date] = {};
+    if(!byDate[ev.date][ev.uid]) byDate[ev.date][ev.uid] = [];
+    byDate[ev.date][ev.uid].push(ev.unitIndex);
+  });
+
+  var nonHitCursor = {}; // uid -> how many of its slots already consumed by an earlier date, in row order
   var liveSessions = Object.keys(byDate).sort().map(function(date){
     var sales = [];
     Object.keys(byDate[date]).forEach(function(uid){
-      var qty = byDate[date][uid];
+      var isHit = !!hitItems.find(function(h){ return h.uid===uid; });
       var label = (hitItems.find(function(h){ return h.uid===uid; }) || nonHitItems.find(function(n){ return n.uid===uid; }) || {}).name || '';
-      if(qty === 1 && (hitItems.find(function(h){ return h.uid===uid; }))){
+      var qty = byDate[date][uid].length;
+      if(isHit){
         sales.push({uid:uid, label:label, sold:true, qty:1});
       } else {
-        var start = nonHitSlotCursor[uid] || 0;
+        var start = nonHitCursor[uid] || 0;
         var allSlots = slotOf[uid] || [];
         var slots = allSlots.slice(start, start + qty);
-        nonHitSlotCursor[uid] = start + qty;
+        nonHitCursor[uid] = start + qty;
         sales.push({uid:uid, label:label, sold:true, qty:qty, slots:slots});
       }
     });
