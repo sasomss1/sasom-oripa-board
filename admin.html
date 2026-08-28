@@ -836,7 +836,7 @@
 
     <div class="field">
       <label><span data-th>จำนวนรายการฮิต (ไม่บังคับ)</span><span data-en>Number of hit rows (optional)</span></label>
-      <input type="number" id="csvHitCutoff" placeholder="">
+      <input type="number" id="csvHitCutoff" placeholder="" oninput="reparseCsvNow()">
     </div>
 
     <div class="field">
@@ -1253,7 +1253,7 @@ function recalc(){
 
   renderLiveHistory();
 
-  return {totalSlots:totalSlots, pricePerSpot:pricePerSpot, maxMoney:maxMoney, totalCost:totalCost, costPct:costPct, profit:profit, profitPct:profitPct, avgPrize:avgPrize, breakEven:breakEven, hitCount:hitCount, nonHitCount:nonHitCount};
+  return {totalSlots:totalSlots, pricePerSpot:pricePerSpot, maxMoney:maxMoney, totalCost:totalCost, costPct:costPct, profit:profit, profitPct:profitPct, avgPrize:avgPrize, breakEven:breakEven, hitCount:hitCount, nonHitCount:nonHitCount, payoutRate:payoutRate*100};
 }
 
 
@@ -2562,6 +2562,7 @@ function loadBoardIntoForm(entry){
 
   setBoardStatus(entry.status || 'PREPARE');
   document.getElementById('pricePerSpot').value = entry.stats.pricePerSpot;
+  document.getElementById('payoutRate').value = (entry.stats.payoutRate != null) ? entry.stats.payoutRate : 70;
 
   boardColor = entry.color || null;
   setColorField(boardColor ? boardColor.hex : null, boardColor ? boardColor.th : null, boardColor ? boardColor.en : null);
@@ -2599,6 +2600,7 @@ function openCsvImportModal(){
   document.getElementById('csvHitCutoff').value = '';
   document.getElementById('csvFileInput').value = '';
   document.getElementById('csvPreviewBox').innerHTML = '';
+  lastCsvFileText = null;
   csvStatus = 'PREPARE';
   document.querySelectorAll('#csvImportOverlay .status-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.status === 'PREPARE'); });
   parsedCsvImport = null;
@@ -2665,25 +2667,37 @@ function isSoldValue(str){
   return str === 'true' || str === 'yes' || str === '1';
 }
 
+var lastCsvFileText = null; // cached so changing the cutoff field can re-parse without re-reading the file
+
 function onCsvFileChosen(event){
   var file = event.target.files[0];
   if(!file) return;
   var reader = new FileReader();
   reader.onload = function(e){
-    try{
-      var year = new Date().getFullYear();
-      var hitCutoff = +document.getElementById('csvHitCutoff').value || 0;
-      var nonHitThreshold = 5;
-      var result = parseCsvImportData(e.target.result, year, hitCutoff, nonHitThreshold);
-      parsedCsvImport = result;
-      renderCsvPreview(result);
-      var btn = document.getElementById('csvImportConfirmBtn');
-      btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
-    } catch(err){
-      document.getElementById('csvPreviewBox').innerHTML = '<p class="hint" style="color:#C0392B;">Parse error: '+err.message+'</p>';
-    }
+    lastCsvFileText = e.target.result;
+    reparseCsvNow();
   };
   reader.readAsText(file);
+}
+
+// Re-runs the parse against the already-loaded file text using whatever is
+// currently in the form fields. Called both right after picking the file and
+// again whenever the hit-row cutoff is changed afterward, so the cutoff
+// always takes effect — even if it's typed in after the file was chosen.
+function reparseCsvNow(){
+  if(!lastCsvFileText) return;
+  try{
+    var year = new Date().getFullYear();
+    var hitCutoff = +document.getElementById('csvHitCutoff').value || 0;
+    var nonHitThreshold = 5;
+    var result = parseCsvImportData(lastCsvFileText, year, hitCutoff, nonHitThreshold);
+    parsedCsvImport = result;
+    renderCsvPreview(result);
+    var btn = document.getElementById('csvImportConfirmBtn');
+    btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
+  } catch(err){
+    document.getElementById('csvPreviewBox').innerHTML = '<p class="hint" style="color:#C0392B;">Parse error: '+err.message+'</p>';
+  }
 }
 
 // Hit vs non-hit is decided purely by row position: the first "hitCutoff" data
