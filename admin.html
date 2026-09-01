@@ -868,6 +868,7 @@ var sellerEmailsDefault = [
 ]; // kept only as a reference; no longer auto-added — see fetchSellerEmailsFromServer()
 var sellerEmails = []; // populated from the backend (added emails) + board-derived emails once loaded
 var currentSellerEmail = null;
+var editingBoardId = null; // set when an existing board is loaded for editing; keeps Confirm/auto-save pointed at the SAME board even if its name or email changes
 var savedBoards = []; // {sellerEmail, boardName, stats, entriesSnapshot, lastOneSnapshot, status, liveSessions}
 var boardStatus = 'PREPARE'; // 'PREPARE' | 'ON' | 'OFF'
 var sellerFeePct = 5; // platform fee % deducted from seller payout, editable per board
@@ -1933,7 +1934,9 @@ function confirmSalesRecord(){
 function maybeAutoSave(){
   if(!currentSellerEmail) return;
   var boardName = document.getElementById('boardName').value || 'Untitled Board';
-  var existing = savedBoards.find(function(b){ return b.sellerEmail===currentSellerEmail && b.boardName===boardName; });
+  var existing = editingBoardId
+    ? savedBoards.find(function(b){ return b.boardId === editingBoardId; })
+    : savedBoards.find(function(b){ return b.sellerEmail===currentSellerEmail && b.boardName===boardName; });
   if(!existing) return; // only auto-sync boards that have already been Confirmed once
   var entry = {
     boardId: existing.boardId,
@@ -2032,7 +2035,14 @@ function confirmBoard(){
 
   var stats = recalc();
 
-  var existing = savedBoards.find(function(b){ return b.sellerEmail===currentSellerEmail && b.boardName===boardName; });
+  // Prefer the board we know we're editing (tracked by its stable boardId)
+  // over matching by name/email — otherwise renaming a board, changing its
+  // seller, or re-importing a CSV that alters those fields would fail to
+  // match the old entry and silently create a duplicate board instead of
+  // updating it.
+  var existing = editingBoardId
+    ? savedBoards.find(function(b){ return b.boardId === editingBoardId; })
+    : savedBoards.find(function(b){ return b.sellerEmail===currentSellerEmail && b.boardName===boardName; });
   var entry = {
     boardId: existing ? existing.boardId : null,
     sellerEmail: currentSellerEmail,
@@ -2049,6 +2059,7 @@ function confirmBoard(){
   };
 
   saveBoardToServer(entry).then(function(saved){
+    editingBoardId = saved.boardId;
     showSellerPage(saved);
   });
 }
@@ -2523,6 +2534,7 @@ function deleteBoardConfirm(boardId){
 }
 
 function resetForm(){
+  editingBoardId = null;
   document.getElementById('boardName').value = '';
   boardColor = null;
   setColorField(null);
@@ -2554,6 +2566,7 @@ function resetForm(){
 }
 
 function loadBoardIntoForm(entry){
+  editingBoardId = entry.boardId;
   document.getElementById('boardName').value = entry.boardName;
   currentSellerEmail = entry.sellerEmail;
   var sellerEl = document.getElementById('sellerEmailText');
