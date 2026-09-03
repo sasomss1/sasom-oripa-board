@@ -875,7 +875,7 @@
 </div>
 
 <!-- EDIT ITEM MODAL (price / qty only) -->
-<div class="overlay" id="editItemOverlay" onclick="if(event.target===this) closePicker('editItemOverlay')">
+<div class="overlay" id="editItemOverlay" onclick="if(event.target===this){ closePicker('editItemOverlay'); document.removeEventListener('keydown', handleEditItemKeydown); }">
   <div class="pick-modal">
     <div class="pick-modal-head">
       <h3><span data-th>แก้ไขราคา/จำนวน</span><span data-en>Edit Price / Qty</span></h3>
@@ -893,7 +893,7 @@
       </div>
     </div>
     <div class="btn-row">
-      <div class="btn-cancel" onclick="closePicker('editItemOverlay')"><span data-th>ยกเลิก</span><span data-en>Cancel</span></div>
+      <div class="btn-cancel" onclick="closePicker('editItemOverlay'); document.removeEventListener('keydown', handleEditItemKeydown);"><span data-th>ยกเลิก</span><span data-en>Cancel</span></div>
       <div class="btn-confirm" onclick="confirmEditItem()"><span data-th>บันทึก</span><span data-en>Save</span></div>
     </div>
   </div>
@@ -1289,6 +1289,19 @@ function openEditItemModal(listName, idx){
   }
 
   openPicker('editItemOverlay');
+  document.addEventListener('keydown', handleEditItemKeydown);
+  document.getElementById('editItemPrice').focus();
+}
+
+function handleEditItemKeydown(e){
+  if(e.key === 'Escape'){
+    e.preventDefault();
+    closePicker('editItemOverlay');
+    document.removeEventListener('keydown', handleEditItemKeydown);
+  } else if(e.key === 'Enter'){
+    e.preventDefault();
+    confirmEditItem();
+  }
 }
 
 function confirmEditItem(){
@@ -1307,6 +1320,7 @@ function confirmEditItem(){
   }
 
   closePicker('editItemOverlay');
+  document.removeEventListener('keydown', handleEditItemKeydown);
   recalc();
 }
 
