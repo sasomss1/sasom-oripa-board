@@ -2266,12 +2266,9 @@ var selectedBoardIds = {};
 function buildBoardRow(b){
   var row = document.createElement('div');
   row.className = 'board-row';
-  var pnlBadge = '';
-  if(b.stats.pricePerSpot > 0){
-    var fin = computeBoardFinancials(b);
-    var statusClass = fin.profit > 0 ? 'profit' : (fin.profit < 0 ? 'loss' : 'breakeven');
-    pnlBadge = ' <span class="status-badge '+statusClass+'">'+signedFmt(fin.profit)+'</span>';
-  }
+  var profitVal = b.stats.pricePerSpot > 0 ? computeBoardFinancials(b).profit : 0;
+  var statusClass = profitVal > 0 ? 'profit' : (profitVal < 0 ? 'loss' : 'breakeven');
+  var pnlBadge = ' <span class="status-badge '+statusClass+'">'+signedFmt(profitVal)+'</span>';
   row.innerHTML =
     '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
     '<div class="board-row-main">'+
