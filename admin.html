@@ -343,7 +343,7 @@
   #signInGate{position:fixed; inset:0; background:#F7F7F7; z-index:10000; display:flex; align-items:center; justify-content:center;}
   #signInGate.hidden{display:none;}
   .signin-card{background:#fff; border-radius:20px; padding:40px 36px; box-shadow:0 20px 60px rgba(0,0,0,.15); text-align:center; max-width:360px; width:100%;}
-  .signin-card h2{font-size:20px; font-weight:600; margin:0 0 8px;}
+  .signin-card h2{font-size:20px; font-weight:600; margin:0 0 20px;}
   #googleSignInBtn{display:flex; justify-content:center;}
 </style>
 </head>
@@ -352,8 +352,7 @@
 <!-- SIGN-IN GATE — blocks all admin content until an @sasom.co.th account signs in -->
 <div id="signInGate">
   <div class="signin-card">
-    <h2><span data-th>เข้าสู่ระบบ Admin</span><span data-en>Admin Sign-In</span></h2>
-    <p class="hint" style="margin-bottom:20px;"><span data-th>ต้องใช้บัญชี Google ที่ลงท้ายด้วย @sasom.co.th เท่านั้น</span><span data-en>Requires a Google account ending in @sasom.co.th</span></p>
+    <h2><span data-th>SASOM Sign-in</span><span data-en>SASOM Sign-in</span></h2>
     <div id="googleSignInBtn"></div>
     <p id="signInError" class="hint" style="display:none; color:#C0392B; margin-top:16px;"></p>
   </div>
@@ -372,6 +371,7 @@
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
+      <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -612,6 +612,7 @@
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="change-btn" onclick="repairAllBoardStats()"><span data-th>ซ่อมตัวเลข Hit/Non-hit</span><span data-en>Repair Hit/Non-hit counts</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
@@ -648,6 +649,7 @@
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
         <div class="opt en active">EN</div>
