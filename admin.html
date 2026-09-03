@@ -938,6 +938,11 @@ var GRADE_SETS = {
 
 function fmt(n){ return '฿' + Math.round(n).toLocaleString('en-US'); }
 function fmtPrice(n){ return n ? fmt(n) : '—'; }
+function signedFmt(n){
+  if(n > 0) return '+' + fmt(n);
+  if(n < 0) return '-' + fmt(Math.abs(n));
+  return fmt(0);
+}
 
 // ============== CSV EXPORT ==============
 function csvEscape(val){
@@ -2261,13 +2266,11 @@ var selectedBoardIds = {};
 function buildBoardRow(b){
   var row = document.createElement('div');
   row.className = 'board-row';
-  var pnlBadge;
+  var pnlBadge = '';
   if(b.stats.pricePerSpot > 0){
     var fin = computeBoardFinancials(b);
-    var statusClass = fin.status === 'Profit' ? 'profit' : (fin.status === 'Loss' ? 'loss' : 'breakeven');
-    pnlBadge = ' <span class="status-badge '+statusClass+'">'+fin.status+'</span>';
-  } else {
-    pnlBadge = ' <span class="status-badge nodata">-</span>';
+    var statusClass = fin.profit > 0 ? 'profit' : (fin.profit < 0 ? 'loss' : 'breakeven');
+    pnlBadge = ' <span class="status-badge '+statusClass+'">'+signedFmt(fin.profit)+'</span>';
   }
   row.innerHTML =
     '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
@@ -2483,11 +2486,11 @@ var selectedSummaryIds = {};
 function buildSummaryRow(b, fin){
   var row = document.createElement('div');
   row.className = 'board-row';
-  var statusClass = fin.status === 'Profit' ? 'profit' : (fin.status === 'Loss' ? 'loss' : 'breakeven');
+  var statusClass = fin.profit > 0 ? 'profit' : (fin.profit < 0 ? 'loss' : 'breakeven');
   row.innerHTML =
     '<input type="checkbox" class="summary-select-chk" data-id="'+b.boardId+'" '+(selectedSummaryIds[b.boardId] ? 'checked' : '')+'>'+
     '<div class="board-row-main">'+
-      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span> <span class="status-badge '+statusClass+'">'+fin.status+'</span></div>'+
+      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span> <span class="status-badge '+statusClass+'">'+signedFmt(fin.profit)+'</span></div>'+
       '<div class="board-row-sub">'+b.sellerEmail+'</div>'+
     '</div>'+
     '<div class="board-row-stats">'+
@@ -2495,7 +2498,7 @@ function buildSummaryRow(b, fin){
       '<div>Sold<b>'+fin.soldSpots+' / '+fin.totalSlots+'</b></div>'+
       '<div>Sold GMV<b>'+fmt(fin.soldGMV)+'</b></div>'+
       '<div>Sold Cost<b>'+fmt(fin.soldCost)+'</b></div>'+
-      '<div>Profit<b style="color:'+(fin.profit>0?'#2E7D32':(fin.profit<0?'#C0392B':'inherit'))+';">'+fmt(fin.profit)+'</b></div>'+
+      '<div>Profit<b style="color:'+(fin.profit>0?'#2E7D32':(fin.profit<0?'#C0392B':'inherit'))+';">'+signedFmt(fin.profit)+'</b></div>'+
       '<div>Payable to Seller<b>'+fmt(fin.payout)+'</b></div>'+
     '</div>'+
     '<div class="board-row-actions">'+
