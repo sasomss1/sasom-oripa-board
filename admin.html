@@ -252,6 +252,7 @@
   .status-badge.profit{background:#EAF7EA; color:#2E7D32;}
   .status-badge.loss{background:#FBEAEA; color:#C0392B;}
   .status-badge.breakeven{background:var(--gray-bg); color:var(--sub);}
+  .status-badge.nodata{background:var(--gray-bg); color:var(--sub); font-weight:400;}
 
   .live-session{border:1px solid var(--gray-line); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
   .live-session-top{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
@@ -2260,11 +2261,13 @@ var selectedBoardIds = {};
 function buildBoardRow(b){
   var row = document.createElement('div');
   row.className = 'board-row';
-  var pnlBadge = '';
+  var pnlBadge;
   if(b.stats.pricePerSpot > 0){
     var fin = computeBoardFinancials(b);
     var statusClass = fin.status === 'Profit' ? 'profit' : (fin.status === 'Loss' ? 'loss' : 'breakeven');
     pnlBadge = ' <span class="status-badge '+statusClass+'">'+fin.status+'</span>';
+  } else {
+    pnlBadge = ' <span class="status-badge nodata">-</span>';
   }
   row.innerHTML =
     '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
