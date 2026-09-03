@@ -6,6 +6,7 @@
 <title>SASOM Oripa Board - Create</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --dark:#1B1B1B;
@@ -138,6 +139,8 @@
   .mini-item .mi-sub{color:var(--sub); font-size:11.5px; margin-top:1px;}
   .mini-item .mi-price{font-weight:500; white-space:nowrap;}
   .mini-item .mi-remove{color:#B5B5B5; cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0;}
+  .mini-item .mi-edit{color:#B5B5B5; cursor:pointer; font-size:14px; padding:2px 4px; flex-shrink:0;}
+  .mini-item .mi-edit:hover, .mini-item .mi-remove:hover{color:var(--dark);}
   .mini-item .mi-slot{background:var(--dark); color:#fff; font-size:11px; font-weight:600; padding:5px 9px; border-radius:7px; flex-shrink:0; white-space:nowrap;}
   .slot-badge{display:inline-block; background:var(--dark); color:#fff; font-size:11px; font-weight:600; padding:4px 9px; border-radius:7px; white-space:nowrap; margin-top:3px;}
 
@@ -336,11 +339,27 @@
   .loading-text{font-size:13.5px; color:var(--sub); font-weight:500;}
   .inline-loading{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--sub);}
   .inline-spinner{width:14px; height:14px; border-radius:50%; border:2px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite; flex-shrink:0;}
+
+  #signInGate{position:fixed; inset:0; background:#F7F7F7; z-index:10000; display:flex; align-items:center; justify-content:center;}
+  #signInGate.hidden{display:none;}
+  .signin-card{background:#fff; border-radius:20px; padding:40px 36px; box-shadow:0 20px 60px rgba(0,0,0,.15); text-align:center; max-width:360px; width:100%;}
+  .signin-card h2{font-size:20px; font-weight:600; margin:0 0 8px;}
+  #googleSignInBtn{display:flex; justify-content:center;}
 </style>
 </head>
 <body>
 
-<div id="loadingOverlay">
+<!-- SIGN-IN GATE — blocks all admin content until an @sasom.co.th account signs in -->
+<div id="signInGate">
+  <div class="signin-card">
+    <h2><span data-th>เข้าสู่ระบบ Admin</span><span data-en>Admin Sign-In</span></h2>
+    <p class="hint" style="margin-bottom:20px;"><span data-th>ต้องใช้บัญชี Google ที่ลงท้ายด้วย @sasom.co.th เท่านั้น</span><span data-en>Requires a Google account ending in @sasom.co.th</span></p>
+    <div id="googleSignInBtn"></div>
+    <p id="signInError" class="hint" style="display:none; color:#C0392B; margin-top:16px;"></p>
+  </div>
+</div>
+
+<div id="loadingOverlay" class="hidden">
   <div class="loading-spinner"></div>
   <div class="loading-text"><span data-th>กำลังโหลดข้อมูล...</span><span data-en>Loading data...</span></div>
 </div>
@@ -853,6 +872,31 @@
   </div>
 </div>
 
+<!-- EDIT ITEM MODAL (price / qty only) -->
+<div class="overlay" id="editItemOverlay" onclick="if(event.target===this) closePicker('editItemOverlay')">
+  <div class="pick-modal">
+    <div class="pick-modal-head">
+      <h3><span data-th>แก้ไขราคา/จำนวน</span><span data-en>Edit Price / Qty</span></h3>
+      <span class="close-x" onclick="closePicker('editItemOverlay')">✕</span>
+    </div>
+    <div class="product-mini-card" id="editItemPreview"></div>
+    <div class="row2">
+      <div class="field">
+        <label><span data-th>ราคา</span><span data-en>Price</span></label>
+        <div class="prefix-input"><span>฿</span><input type="number" id="editItemPrice" placeholder=""></div>
+      </div>
+      <div class="field" id="editItemQtyField">
+        <label><span data-th>จำนวน</span><span data-en>Qty</span></label>
+        <input type="number" id="editItemQty" value="1">
+      </div>
+    </div>
+    <div class="btn-row">
+      <div class="btn-cancel" onclick="closePicker('editItemOverlay')"><span data-th>ยกเลิก</span><span data-en>Cancel</span></div>
+      <div class="btn-confirm" onclick="confirmEditItem()"><span data-th>บันทึก</span><span data-en>Save</span></div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============== DATA (blank template) ==============
 var TIER_LADDER = ['SSS','SS+','SS','SS-','S+','S','S-','AA+','AA','AA-','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-','F+','F','F-'];
@@ -1064,6 +1108,7 @@ function renderMiniLists(){
         '<div class="mi-sub">'+(item.sku ? 'SKU · '+item.sku+' · ' : '')+(item.condition||'')+(qty>1 ? ' · ×'+qty : '')+'</div>'+
       '</div>'+
       '<div class="mi-price">'+fmtPrice(item.price)+(qty>1 ? ' <span style="color:var(--sub); font-weight:400;">/<span data-th>ใบ</span><span data-en>ea</span></span>' : '')+'</div>'+
+      '<span class="mi-edit" onclick="openEditItemModal(\'hit\','+i+')">✎</span>'+
       '<span class="mi-remove" onclick="removeHitItem('+i+')">×</span>';
     attachDragHandlers(d, 'hit');
     hitWrap.appendChild(d);
@@ -1091,6 +1136,7 @@ function renderMiniLists(){
         '<div class="mi-sub">'+(item.isRaw ? 'Raw' : (item.condition||''))+' · ×'+item.qty+'</div>'+
       '</div>'+
       '<div class="mi-price">'+fmtPrice(item.price)+' <span style="color:var(--sub); font-weight:400;">/<span data-th>ใบ</span><span data-en>ea</span></span></div>'+
+      '<span class="mi-edit" onclick="openEditItemModal(\'nonhit\','+i+')">✎</span>'+
       '<span class="mi-remove" onclick="removeNonHitItem('+i+')">×</span>';
     attachDragHandlers(d, 'nonhit');
     nhWrap.appendChild(d);
@@ -1104,7 +1150,7 @@ function renderMiniLists(){
     d2.draggable = true;
     d2.dataset.idx = 0;
     d2.dataset.list = 'lastone';
-    d2.innerHTML = '<span class="mi-drag">⠿</span><div style="flex:1; min-width:0;"><div class="mi-name">'+lastOneItem.name+'</div></div><div class="mi-price">'+fmt(lastOneItem.price)+'</div><span class="mi-remove" onclick="removeLastOne()">×</span>';
+    d2.innerHTML = '<span class="mi-drag">⠿</span><div style="flex:1; min-width:0;"><div class="mi-name">'+lastOneItem.name+'</div></div><div class="mi-price">'+fmt(lastOneItem.price)+'</div><span class="mi-edit" onclick="openEditItemModal(\'lastone\',0)">✎</span><span class="mi-remove" onclick="removeLastOne()">×</span>';
     attachDragHandlers(d2, 'lastone');
     loWrap.appendChild(d2);
   } else {
@@ -1212,6 +1258,54 @@ function moveItemBetweenLists(fromList, fromIdx, toList, toIdx){
 function removeHitItem(i){ hitItems.splice(i,1); recalc(); }
 function removeNonHitItem(i){ nonHitItems.splice(i,1); recalc(); }
 function removeLastOne(){ lastOneItem = null; recalc(); }
+
+// ============== EDIT ITEM (price / qty only, no need to re-add via the wizard) ==============
+var editItemList = null; // 'hit' | 'nonhit' | 'lastone'
+var editItemIdx = null;
+
+function openEditItemModal(listName, idx){
+  editItemList = listName;
+  editItemIdx = idx;
+
+  var item = listName === 'lastone' ? lastOneItem : (listName === 'hit' ? hitItems[idx] : nonHitItems[idx]);
+  if(!item) return;
+
+  var preview = document.getElementById('editItemPreview');
+  preview.innerHTML =
+    (item.img ? '<img src="'+item.img+'" onerror="imgFallback(this,\'pmc-noimg\')">' : '<div class="pmc-noimg"></div>')+
+    '<div><div class="pmc-name">'+item.name+'</div>'+(item.sku ? '<div class="pmc-sub">SKU · '+item.sku+'</div>' : '')+'</div>';
+
+  document.getElementById('editItemPrice').value = item.price || '';
+
+  var qtyField = document.getElementById('editItemQtyField');
+  if(listName === 'lastone'){
+    qtyField.style.display = 'none';
+  } else {
+    qtyField.style.display = 'block';
+    document.getElementById('editItemQty').value = item.qty || 1;
+  }
+
+  openPicker('editItemOverlay');
+}
+
+function confirmEditItem(){
+  var price = +document.getElementById('editItemPrice').value || 0;
+  var qty = +document.getElementById('editItemQty').value || 1;
+  if(qty < 1) qty = 1;
+
+  if(editItemList === 'lastone'){
+    if(lastOneItem) lastOneItem.price = price;
+  } else if(editItemList === 'hit'){
+    hitItems[editItemIdx].price = price;
+    hitItems[editItemIdx].qty = qty;
+  } else if(editItemList === 'nonhit'){
+    nonHitItems[editItemIdx].price = price;
+    nonHitItems[editItemIdx].qty = qty;
+  }
+
+  closePicker('editItemOverlay');
+  recalc();
+}
 
 function recalc(){
   var pricePerSpot = +document.getElementById('pricePerSpot').value || 0;
@@ -1355,9 +1449,10 @@ function addNewSeller(){
 
 function fetchSellerEmailsFromServer(){
   if(!apiConfigured()) return Promise.resolve();
-  return fetch(API_URL + '?action=getSellerEmails')
+  return fetch(API_URL + '?action=getSellerEmails&token=' + encodeURIComponent(googleIdToken||''))
     .then(function(r){ return r.json(); })
     .then(function(res){
+      if(res.authError){ signOutAdmin(res.error); return; }
       if(res.ok){
         // Only ever show emails that were explicitly added (persisted on the
         // backend) or that already have a board — no hardcoded placeholder
@@ -1372,7 +1467,9 @@ function fetchSellerEmailsFromServer(){
 
 function saveSellerEmailsToServer(){
   if(!apiConfigured()) return;
-  fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'saveSellerEmails', emails: sellerEmails }) })
+  fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'saveSellerEmails', emails: sellerEmails, token: googleIdToken }) })
+    .then(function(r){ return r.json(); })
+    .then(function(res){ if(res && res.authError) signOutAdmin(res.error); })
     .catch(function(){ /* silent — email list will just re-sync next load */ });
 }
 
@@ -1456,9 +1553,10 @@ function fetchFromLink(){
 
   box.innerHTML = '<p class="hint" style="margin-top:12px;">กำลังค้นหา... / Searching...</p>';
 
-  fetch(API_URL + '?action=fetchProduct&url=' + encodeURIComponent(link))
+  fetch(API_URL + '?action=fetchProduct&url=' + encodeURIComponent(link) + '&token=' + encodeURIComponent(googleIdToken||''))
     .then(function(r){ return r.json(); })
     .then(function(res){
+      if(res.authError){ signOutAdmin(res.error); return; }
       if(!res.ok){
         box.innerHTML = '<p class="hint" style="margin-top:12px;">Fetch error: '+res.error+'</p>';
         return;
@@ -1976,9 +2074,10 @@ function fetchAllBoardsFromServer(){
     return Promise.resolve();
   }
   setSyncStatus('กำลังซิงก์... / Syncing...', true);
-  return fetch(API_URL + '?action=getAll')
+  return fetch(API_URL + '?action=getAll&token=' + encodeURIComponent(googleIdToken||''))
     .then(function(r){ return r.json(); })
     .then(function(res){
+      if(res.authError){ signOutAdmin(res.error); return; }
       if(res.ok){
         savedBoards = res.boards || [];
         buildSellerSwitcher();
@@ -2001,10 +2100,11 @@ function saveBoardToServer(entry){
   setSyncStatus('กำลังบันทึก... / Saving...');
   return fetch(API_URL, {
     method: 'POST',
-    body: JSON.stringify({ action:'saveBoard', board: entry })
+    body: JSON.stringify({ action:'saveBoard', board: entry, token: googleIdToken })
   })
   .then(function(r){ return r.json(); })
   .then(function(res){
+    if(res.authError){ signOutAdmin(res.error); return entry; }
     if(res.ok){
       entry.boardId = res.boardId;
       setSyncStatus('บันทึกแล้ว: ' + new Date().toLocaleTimeString());
@@ -2250,7 +2350,7 @@ function repairAllBoardStats(){
   document.getElementById('boardsListSyncStatus').innerHTML = '<span class="inline-loading"><span class="inline-spinner"></span>Repairing ' + toFix.length + ' board(s)...</span>';
 
   var requests = toFix.map(function(b){
-    return fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'saveBoard', board: b }) }).then(function(r){ return r.json(); });
+    return fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'saveBoard', board: b, token: googleIdToken }) }).then(function(r){ return r.json(); });
   });
 
   Promise.all(requests).then(function(results){
@@ -2519,9 +2619,10 @@ function editBoard(boardId){
 function deleteBoardConfirm(boardId){
   if(!confirm('Delete this board? This cannot be undone.')) return;
   document.getElementById('boardsListSyncStatus').textContent = 'Deleting...';
-  fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'deleteBoard', boardId: boardId }) })
+  fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'deleteBoard', boardId: boardId, token: googleIdToken }) })
     .then(function(r){ return r.json(); })
     .then(function(res){
+      if(res.authError){ signOutAdmin(res.error); return; }
       if(res.ok){
         savedBoards = savedBoards.filter(function(b){ return b.boardId !== boardId; });
         renderBoardsList();
@@ -2924,51 +3025,134 @@ function setLang(lang){
   document.querySelectorAll('.toggle-pill .opt.'+lang).forEach(function(o){ o.classList.add('active'); });
 }
 
-// ============== INIT ==============
-var urlParams = new URLSearchParams(location.search);
-var viewParam = urlParams.get('view');
-var editParam = urlParams.get('edit');
+// ============== GOOGLE SIGN-IN (Admin access control) ==============
+var ADMIN_OAUTH_CLIENT_ID = '371387702660-i3ld7drk42kcetnh1f3i3mfeoca29825.apps.googleusercontent.com';
+var ADMIN_EMAIL_DOMAIN = '@sasom.co.th';
+var googleIdToken = null;
 
-// A plain visit (no ?edit=) always starts blank — never carries over
-// whatever board was last loaded/edited in this tab.
-if(!editParam){
-  hitItems = [];
-  nonHitItems = [];
-  lastOneItem = null;
-  liveSessions = [];
-  currentSellerEmail = null;
+function decodeJwtPayload(token){
+  try{
+    var payload = token.split('.')[1];
+    var json = decodeURIComponent(atob(payload.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(json);
+  } catch(e){ return null; }
 }
 
-buildSellerOptions();
-renderLiveHistory();
-recalc();
-fetchSellerEmailsFromServer();
-
-if(viewParam === 'boards'){
-  document.getElementById('formView').style.display = 'none';
-  document.getElementById('sellerPageView').style.display = 'none';
-  document.getElementById('boardsListView').style.display = 'block';
-}
-if(viewParam === 'summary'){
-  document.getElementById('formView').style.display = 'none';
-  document.getElementById('sellerPageView').style.display = 'none';
-  document.getElementById('summaryView').style.display = 'block';
+function isTokenUsable(token){
+  var payload = decodeJwtPayload(token);
+  if(!payload) return false;
+  if(payload.exp && payload.exp * 1000 < Date.now()) return false; // expired
+  var email = (payload.email || '').toLowerCase();
+  return email.indexOf(ADMIN_EMAIL_DOMAIN) === email.length - ADMIN_EMAIL_DOMAIN.length;
 }
 
-fetchAllBoardsFromServer().then(function(){
-  syncSellerEmailsWithBoards();
+function showSignInError(msg){
+  var el = document.getElementById('signInError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function signOutAdmin(reason){
+  googleIdToken = null;
+  sessionStorage.removeItem('sasom_admin_token');
+  document.getElementById('signInGate').classList.remove('hidden');
+  document.getElementById('loadingOverlay').classList.add('hidden');
+  if(reason) showSignInError(reason);
+  if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
+}
+
+function handleCredentialResponse(response){
+  var token = response.credential;
+  var payload = decodeJwtPayload(token);
+  if(!payload){
+    showSignInError('Could not read sign-in response / อ่านข้อมูลการเข้าสู่ระบบไม่ได้');
+    return;
+  }
+  var email = (payload.email || '').toLowerCase();
+  if(email.indexOf(ADMIN_EMAIL_DOMAIN) !== email.length - ADMIN_EMAIL_DOMAIN.length){
+    showSignInError('Only ' + ADMIN_EMAIL_DOMAIN + ' accounts are allowed / อนุญาตเฉพาะบัญชี ' + ADMIN_EMAIL_DOMAIN + ' เท่านั้น (signed in as ' + email + ')');
+    return;
+  }
+  googleIdToken = token;
+  sessionStorage.setItem('sasom_admin_token', token);
+  document.getElementById('signInGate').classList.add('hidden');
+  document.getElementById('signInError').style.display = 'none';
+  startAdminApp();
+}
+
+function initGoogleSignIn(){
+  if(!window.google || !google.accounts || !google.accounts.id){
+    setTimeout(initGoogleSignIn, 150);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: ADMIN_OAUTH_CLIENT_ID,
+    callback: handleCredentialResponse
+  });
+  google.accounts.id.renderButton(document.getElementById('googleSignInBtn'), { theme:'outline', size:'large', text:'signin_with' });
+
+  // If we already have a usable token from earlier in this browser tab session, skip straight in.
+  var cached = sessionStorage.getItem('sasom_admin_token');
+  if(cached && isTokenUsable(cached)){
+    googleIdToken = cached;
+    document.getElementById('signInGate').classList.add('hidden');
+    startAdminApp();
+  }
+}
+
+initGoogleSignIn();
+
+// ============== INIT (runs only after a verified @sasom.co.th sign-in) ==============
+function startAdminApp(){
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+
+  var urlParams = new URLSearchParams(location.search);
+  var viewParam = urlParams.get('view');
+  var editParam = urlParams.get('edit');
+
+  // A plain visit (no ?edit=) always starts blank — never carries over
+  // whatever board was last loaded/edited in this tab.
+  if(!editParam){
+    hitItems = [];
+    nonHitItems = [];
+    lastOneItem = null;
+    liveSessions = [];
+    currentSellerEmail = null;
+  }
+
+  buildSellerOptions();
+  renderLiveHistory();
+  recalc();
+  fetchSellerEmailsFromServer();
+
   if(viewParam === 'boards'){
-    renderBoardsList();
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('sellerPageView').style.display = 'none';
+    document.getElementById('boardsListView').style.display = 'block';
   }
   if(viewParam === 'summary'){
-    renderSummaryList();
+    document.getElementById('formView').style.display = 'none';
+    document.getElementById('sellerPageView').style.display = 'none';
+    document.getElementById('summaryView').style.display = 'block';
   }
-  if(editParam){
-    var match = savedBoards.find(function(b){ return b.boardId === editParam; });
-    if(match) loadBoardIntoForm(match);
-  }
-  document.getElementById('loadingOverlay').classList.add('hidden');
-});
+
+  fetchAllBoardsFromServer().then(function(){
+    syncSellerEmailsWithBoards();
+    if(viewParam === 'boards'){
+      renderBoardsList();
+    }
+    if(viewParam === 'summary'){
+      renderSummaryList();
+    }
+    if(editParam){
+      var match = savedBoards.find(function(b){ return b.boardId === editParam; });
+      if(match) loadBoardIntoForm(match);
+    }
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  });
+}
 
 // Guard against the browser restoring a stale, already-edited state from
 // back/forward cache (bfcache) instead of a fresh load.
