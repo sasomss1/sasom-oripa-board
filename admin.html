@@ -3075,6 +3075,9 @@ function handleCredentialResponse(response){
   var email = (payload.email || '').toLowerCase();
   if(email.indexOf(ADMIN_EMAIL_DOMAIN) !== email.length - ADMIN_EMAIL_DOMAIN.length){
     showSignInError('Only ' + ADMIN_EMAIL_DOMAIN + ' accounts are allowed / อนุญาตเฉพาะบัญชี ' + ADMIN_EMAIL_DOMAIN + ' เท่านั้น (signed in as ' + email + ')');
+    // Clear Google's remembered selection so the next Sign-In click shows the
+    // account picker again instead of silently reusing this rejected account.
+    if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
     return;
   }
   googleIdToken = token;
