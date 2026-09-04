@@ -65,6 +65,7 @@
   .pricing-toggle-wrap .toggle-pill .opt.off.active{background:#C0392B;}
   .card-head-row h2{margin-bottom:4px;}
   .change-btn{border:1px solid var(--gray-line); background:#fff; color:var(--dark); border-radius:9px; padding:8px 16px; font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; flex-shrink:0;}
+  .change-btn.danger{color:#C0392B; border-color:#F3CFCF;}
   .export-dropdown{position:relative; display:inline-block;}
   .export-menu{position:absolute; top:calc(100% + 6px); right:0; background:#fff; border:1px solid var(--gray-line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14); min-width:150px; z-index:30; display:none; overflow:hidden;}
   .export-menu.open{display:block;}
@@ -621,6 +622,7 @@
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="change-btn danger" onclick="deleteSelectedBoards()"><span data-th>ลบที่เลือก</span><span data-en>Delete Selected</span></button>
       <button class="change-btn" onclick="repairAllBoardStats()"><span data-th>ซ่อมตัวเลข Hit/Non-hit</span><span data-en>Repair Hit/Non-hit counts</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
@@ -2712,6 +2714,32 @@ function deleteBoardConfirm(boardId){
       }
     })
     .catch(function(err){ document.getElementById('boardsListSyncStatus').textContent = 'Delete failed: ' + err.message; });
+}
+
+function deleteSelectedBoards(){
+  var ids = Object.keys(selectedBoardIds);
+  if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
+  if(!confirm('Delete ' + ids.length + ' selected board(s)? This cannot be undone.\nลบ ' + ids.length + ' บอร์ดที่เลือก? กู้คืนไม่ได้')) return;
+
+  document.getElementById('boardsListSyncStatus').innerHTML = '<span class="inline-loading"><span class="inline-spinner"></span>Deleting ' + ids.length + ' board(s)...</span>';
+
+  var requests = ids.map(function(boardId){
+    return fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'deleteBoard', boardId: boardId, token: googleIdToken }) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){ return {boardId: boardId, res: res}; });
+  });
+
+  Promise.all(requests).then(function(results){
+    var authFail = results.find(function(r){ return r.res && r.res.authError; });
+    if(authFail){ signOutAdmin(authFail.res.error); return; }
+    var okIds = results.filter(function(r){ return r.res && r.res.ok; }).map(function(r){ return r.boardId; });
+    savedBoards = savedBoards.filter(function(b){ return okIds.indexOf(b.boardId) === -1; });
+    selectedBoardIds = {};
+    renderBoardsList();
+    document.getElementById('boardsListSyncStatus').textContent = 'Deleted ' + okIds.length + ' of ' + ids.length + ' board(s).';
+  }).catch(function(err){
+    document.getElementById('boardsListSyncStatus').textContent = 'Delete failed: ' + err.message;
+  });
 }
 
 function resetForm(){
