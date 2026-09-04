@@ -141,6 +141,9 @@
   .mini-item .mi-edit{color:#B5B5B5; cursor:pointer; font-size:14px; padding:2px 4px; flex-shrink:0;}
   .mini-item .mi-edit:hover, .mini-item .mi-remove:hover{color:var(--dark);}
   .mini-item .mi-slot{background:var(--dark); color:#fff; font-size:11px; font-weight:600; padding:5px 9px; border-radius:7px; flex-shrink:0; white-space:nowrap;}
+  .mini-item.mi-sold .mi-name, .mini-item.mi-sold .mi-sub, .mini-item.mi-sold .mi-price{color:var(--sub); font-weight:400;}
+  .mini-item.mi-sold .mi-slot{background:var(--sub);}
+  .mini-item.mi-sold img{opacity:.5;}
   .slot-badge{display:inline-block; background:var(--dark); color:#fff; font-size:11px; font-weight:600; padding:4px 9px; border-radius:7px; white-space:nowrap; margin-top:3px;}
 
   .section-row{border:1px solid var(--gray-line); border-radius:16px; padding:20px 24px; display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
@@ -287,6 +290,7 @@
   .slot-pill.selected{background:var(--dark); color:#fff; border-color:var(--dark);}
   .slot-pill.locked{background:#EDEDED; color:#B5B5B5; cursor:not-allowed; text-decoration:line-through;}
   .sold-row.sr-locked{opacity:.65;}
+  .sold-row.sr-checked{opacity:.55;}
 
   .board-row{border:1px solid var(--gray-line); border-radius:14px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:28px;}
   .boards-filter-row{display:flex; align-items:flex-end; gap:14px; margin-bottom:18px; flex-wrap:wrap;}
@@ -1101,6 +1105,15 @@ function renderMiniLists(){
   var slotMap = buildSlotMap();
   initDropZonesOnce();
 
+  var soldQtyByUid = {};
+  liveSessions.forEach(function(s){
+    if(s.paymentStatus === 'CANCEL') return;
+    (s.sales||[]).forEach(function(r){
+      if(!r.sold) return;
+      soldQtyByUid[r.uid] = (soldQtyByUid[r.uid]||0) + (r.qty||0);
+    });
+  });
+
   var hitWrap = document.getElementById('hitItemList');
   hitWrap.innerHTML = '';
   if(!hitItems.length){
@@ -1110,8 +1123,9 @@ function renderMiniLists(){
     var slot = slotMap[item.uid];
     var qty = item.qty || 1;
     var slotBadge = slot ? (qty === 1 ? padSlot(slot.start) : padSlot(slot.start)+' – '+padSlot(slot.end)) : '';
+    var isFullySold = (soldQtyByUid[item.uid]||0) >= qty;
     var d = document.createElement('div');
-    d.className = 'mini-item';
+    d.className = 'mini-item' + (isFullySold ? ' mi-sold' : '');
     d.draggable = true;
     d.dataset.idx = i;
     d.dataset.list = 'hit';
@@ -1138,8 +1152,9 @@ function renderMiniLists(){
   nonHitItems.forEach(function(item, i){
     var slot = slotMap[item.uid];
     var slotBadge = slot ? (slot.qty === 1 ? padSlot(slot.start) : padSlot(slot.start)+' – '+padSlot(slot.end)) : '';
+    var isFullySold = (soldQtyByUid[item.uid]||0) >= item.qty;
     var d = document.createElement('div');
-    d.className = 'mini-item';
+    d.className = 'mini-item' + (isFullySold ? ' mi-sold' : '');
     d.draggable = true;
     d.dataset.idx = i;
     d.dataset.list = 'nonhit';
@@ -1161,8 +1176,9 @@ function renderMiniLists(){
   var loWrap = document.getElementById('lastOneItemList');
   loWrap.innerHTML = '';
   if(lastOneItem){
+    var loSold = (soldQtyByUid[lastOneItem.uid]||0) >= 1;
     var d2 = document.createElement('div');
-    d2.className = 'mini-item';
+    d2.className = 'mini-item' + (loSold ? ' mi-sold' : '');
     d2.draggable = true;
     d2.dataset.idx = 0;
     d2.dataset.list = 'lastone';
@@ -1976,8 +1992,9 @@ function openSalesModal(idx){
       var soldDate = soldElsewhere.singleSoldDate[item.uid];
       var lockedOut = !!soldDate;
       if(lockedOut) row.classList.add('sr-locked');
+      if(existing && existing.sold) row.classList.add('sr-checked');
       row.innerHTML =
-        '<input type="checkbox" id="soldChk-'+i+'" '+(existing && existing.sold ? 'checked' : '')+(lockedOut ? ' disabled' : '')+'>'+
+        '<input type="checkbox" id="soldChk-'+i+'" '+(existing && existing.sold ? 'checked' : '')+(lockedOut ? ' disabled' : '')+' onchange="this.closest(\'.sold-row\').classList.toggle(\'sr-checked\', this.checked)">'+
         thumb+
         '<div class="sr-info">'+
           '<div class="sr-name">'+item.label+(item.nonHit?' · non-hit':'')+'</div>'+
