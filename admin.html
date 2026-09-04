@@ -6,7 +6,6 @@
 <title>SASOM Oripa Board - Create</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --dark:#1B1B1B;
@@ -345,16 +344,17 @@
   #signInGate.hidden{display:none;}
   .signin-card{background:#fff; border-radius:20px; padding:40px 36px; box-shadow:0 20px 60px rgba(0,0,0,.15); text-align:center; max-width:360px; width:100%;}
   .signin-card h2{font-size:20px; font-weight:600; margin:0 0 20px;}
-  #googleSignInBtn{display:flex; justify-content:center;}
+  .signin-card #adminPasswordInput{width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px; border:1px solid var(--gray-line); background:var(--gray-bg); font-size:14px; font-family:inherit; text-align:center;}
 </style>
 </head>
 <body>
 
-<!-- SIGN-IN GATE — blocks all admin content until an @sasom.co.th account signs in -->
+<!-- SIGN-IN GATE — blocks all admin content until the correct password is entered -->
 <div id="signInGate">
   <div class="signin-card">
     <h2><span data-th>SASOM Sign-in</span><span data-en>SASOM Sign-in</span></h2>
-    <div id="googleSignInBtn"></div>
+    <input type="password" id="adminPasswordInput" placeholder="Password" onkeydown="if(event.key==='Enter') tryAdminPassword()">
+    <div class="btn-confirm" style="margin-top:14px;" onclick="tryAdminPassword()"><span data-th>เข้าสู่ระบบ</span><span data-en>Sign in</span></div>
     <p id="signInError" class="hint" style="display:none; color:#C0392B; margin-top:16px;"></p>
   </div>
 </div>
@@ -3045,28 +3045,9 @@ function setLang(lang){
   document.querySelectorAll('.toggle-pill .opt.'+lang).forEach(function(o){ o.classList.add('active'); });
 }
 
-// ============== GOOGLE SIGN-IN (Admin access control) ==============
-var ADMIN_OAUTH_CLIENT_ID = '371387702660-i3ld7drk42kcetnh1f3i3mfeoca29825.apps.googleusercontent.com';
-var ADMIN_EMAIL_DOMAIN = '@sasom.co.th';
-var googleIdToken = null;
-
-function decodeJwtPayload(token){
-  try{
-    var payload = token.split('.')[1];
-    var json = decodeURIComponent(atob(payload.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(json);
-  } catch(e){ return null; }
-}
-
-function isTokenUsable(token){
-  var payload = decodeJwtPayload(token);
-  if(!payload) return false;
-  if(payload.exp && payload.exp * 1000 < Date.now()) return false; // expired
-  var email = (payload.email || '').toLowerCase();
-  return email.indexOf(ADMIN_EMAIL_DOMAIN) === email.length - ADMIN_EMAIL_DOMAIN.length;
-}
+// ============== ADMIN SIGN-IN (shared password) ==============
+var ADMIN_PASSWORD = 'SASOM888_oripa';
+var googleIdToken = null; // holds the password once entered — kept as the "token" sent with every backend request
 
 function showSignInError(msg){
   var el = document.getElementById('signInError');
@@ -3079,53 +3060,32 @@ function signOutAdmin(reason){
   sessionStorage.removeItem('sasom_admin_token');
   document.getElementById('signInGate').classList.remove('hidden');
   document.getElementById('loadingOverlay').classList.add('hidden');
+  document.getElementById('adminPasswordInput').value = '';
   if(reason) showSignInError(reason);
-  if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
 }
 
-function handleCredentialResponse(response){
-  var token = response.credential;
-  var payload = decodeJwtPayload(token);
-  if(!payload){
-    showSignInError('Could not read sign-in response / อ่านข้อมูลการเข้าสู่ระบบไม่ได้');
+function tryAdminPassword(){
+  var pw = document.getElementById('adminPasswordInput').value;
+  if(pw !== ADMIN_PASSWORD){
+    showSignInError('Incorrect password / รหัสผ่านไม่ถูกต้อง');
     return;
   }
-  var email = (payload.email || '').toLowerCase();
-  if(email.indexOf(ADMIN_EMAIL_DOMAIN) !== email.length - ADMIN_EMAIL_DOMAIN.length){
-    showSignInError('Only ' + ADMIN_EMAIL_DOMAIN + ' accounts are allowed / อนุญาตเฉพาะบัญชี ' + ADMIN_EMAIL_DOMAIN + ' เท่านั้น (signed in as ' + email + ')');
-    // Clear Google's remembered selection so the next Sign-In click shows the
-    // account picker again instead of silently reusing this rejected account.
-    if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect();
-    return;
-  }
-  googleIdToken = token;
-  sessionStorage.setItem('sasom_admin_token', token);
+  googleIdToken = pw;
+  sessionStorage.setItem('sasom_admin_token', pw);
   document.getElementById('signInGate').classList.add('hidden');
   document.getElementById('signInError').style.display = 'none';
   startAdminApp();
 }
 
-function initGoogleSignIn(){
-  if(!window.google || !google.accounts || !google.accounts.id){
-    setTimeout(initGoogleSignIn, 150);
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: ADMIN_OAUTH_CLIENT_ID,
-    callback: handleCredentialResponse
-  });
-  google.accounts.id.renderButton(document.getElementById('googleSignInBtn'), { theme:'outline', size:'large', text:'signin_with' });
-
-  // If we already have a usable token from earlier in this browser tab session, skip straight in.
+// If we already have the password from earlier in this browser tab session, skip straight in.
+(function initAdminSignIn(){
   var cached = sessionStorage.getItem('sasom_admin_token');
-  if(cached && isTokenUsable(cached)){
+  if(cached === ADMIN_PASSWORD){
     googleIdToken = cached;
     document.getElementById('signInGate').classList.add('hidden');
     startAdminApp();
   }
-}
-
-initGoogleSignIn();
+})();
 
 // ============== INIT (runs only after a verified @sasom.co.th sign-in) ==============
 function startAdminApp(){
