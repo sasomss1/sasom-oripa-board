@@ -504,6 +504,11 @@
       <div class="stat-card accent"><div class="l"><span data-th>ยอดจ่าย Seller รวม</span><span data-en>Total payable to seller</span></div><div class="v" id="payTotal">฿0</div></div>
     </div>
 
+    <div class="stat-grid" style="margin-top:10px;" id="adminActualPnlGrid">
+      <div class="stat-card"><div class="l"><span data-th>ต้นทุนที่ขายจริง</span><span data-en>Sold Cost</span></div><div class="v" id="paySoldCost">฿0</div></div>
+      <div class="stat-card accent"><div class="l"><span data-th>กำไร/ขาดทุน (ยอดขายจริง)</span><span data-en>Profit / Loss (actual sales)</span> <span class="status-badge" id="payPnlBadge" style="margin-left:6px;">Break-even</span></div><div class="v" id="payPnlValue" style="color:var(--accent);">฿0</div></div>
+    </div>
+
     <div id="liveSessionList" style="margin-top:16px;"></div>
   </div>
 
@@ -1354,7 +1359,10 @@ function recalc(){
   var maxMoney = pricePerSpot * totalSlots;
   var costPct = maxMoney > 0 ? (totalCost / maxMoney) * 100 : 0;
   var profit = maxMoney - totalCost;
-  var profitPct = maxMoney > 0 ? (profit / maxMoney) * 100 : 0;
+  // If no product/SKU prices were entered, totalCost is 0 and profit would
+  // misleadingly equal maxMoney (i.e. "100% profit") — real cost is unknown,
+  // not actually zero, so show 0% instead.
+  var profitPct = (maxMoney > 0 && totalCost > 0) ? (profit / maxMoney) * 100 : 0;
   var avgPrize = totalSlots > 0 ? ladderCost / totalSlots : 0;
   var breakEven = (totalSlots > 0 && payoutRate > 0) ? ladderCost / (totalSlots * payoutRate) : 0;
 
@@ -1808,7 +1816,11 @@ function renderLiveHistory(){
   var pricePerSpot = +document.getElementById('pricePerSpot').value || 0;
   var feePct = sellerFeePct || 0;
 
-  var totalSpotsSold = 0, totalSaleValue = 0, totalFee = 0, totalPayout = 0;
+  var totalSpotsSold = 0, totalSaleValue = 0, totalFee = 0, totalPayout = 0, totalSoldCost = 0;
+  var priceByUid = {};
+  var combinedEntries = getCombinedEntries();
+  combinedEntries.forEach(function(e){ priceByUid[e.uid] = e.price; });
+  var hasCostData = combinedEntries.some(function(e){ return e.price > 0; });
 
   var wrap = document.getElementById('liveSessionList');
   wrap.innerHTML = '';
@@ -1826,6 +1838,9 @@ function renderLiveHistory(){
       totalSaleValue += saleValue;
       totalFee += feeAmount;
       totalPayout += payout;
+      s.sales.forEach(function(r){
+        if(r.sold) totalSoldCost += (priceByUid[r.uid]||0) * (r.qty||0);
+      });
     }
 
     var div = document.createElement('div');
@@ -1858,6 +1873,21 @@ function renderLiveHistory(){
   document.getElementById('paySaleValue').textContent = fmt(totalSaleValue);
   document.getElementById('payFeeTotal').textContent = fmt(totalFee);
   document.getElementById('payTotal').textContent = fmt(totalPayout);
+
+  // Realized (actual sales) Profit/Loss — needs both a selling price AND at
+  // least some product/SKU cost data entered; without cost data, real cost
+  // is unknown (not zero), so show 0 / Break-even instead of a misleading
+  // "100% profit" figure.
+  var actualProfit = hasCostData ? (totalSaleValue - totalSoldCost) : 0;
+  var pnlStatusText = actualProfit > 0 ? 'Profit' : (actualProfit < 0 ? 'Loss' : 'Break-even');
+  var pnlStatusClass = actualProfit > 0 ? 'profit' : (actualProfit < 0 ? 'loss' : 'breakeven');
+  document.getElementById('paySoldCost').textContent = fmt(hasCostData ? totalSoldCost : 0);
+  var pnlBadgeEl = document.getElementById('payPnlBadge');
+  pnlBadgeEl.textContent = pnlStatusText;
+  pnlBadgeEl.className = 'status-badge ' + pnlStatusClass;
+  var pnlValueEl = document.getElementById('payPnlValue');
+  pnlValueEl.textContent = signedFmt(actualProfit);
+  pnlValueEl.style.color = actualProfit < 0 ? '#C0392B' : (actualProfit > 0 ? '#2E7D32' : 'inherit');
 }
 
 function setPaymentStatus(idx, status){
@@ -2270,7 +2300,8 @@ var selectedBoardIds = {};
 function buildBoardRow(b){
   var row = document.createElement('div');
   row.className = 'board-row';
-  var profitVal = b.stats.pricePerSpot > 0 ? computeBoardFinancials(b).profit : 0;
+  var canCalcProfit = b.stats.pricePerSpot > 0 && b.stats.totalCost > 0;
+  var profitVal = canCalcProfit ? computeBoardFinancials(b).profit : 0;
   var statusClass = profitVal > 0 ? 'profit' : (profitVal < 0 ? 'loss' : 'breakeven');
   var statusText = profitVal > 0 ? 'Profit' : (profitVal < 0 ? 'Loss' : 'Break-even');
   var pnlBadge = ' <span class="status-badge '+statusClass+'">'+statusText+'</span>';
@@ -2552,6 +2583,12 @@ function renderSummaryList(){
   var countProfit = 0, countLoss = 0, countBreakEven = 0, totalProfit = 0;
   var withFin = priced.map(function(b){
     var fin = computeBoardFinancials(b);
+    // If no individual product/SKU prices were entered, cost computes to 0
+    // and profit would misleadingly look like pure revenue — treat as
+    // break-even (0) instead, since real cost is unknown, not actually zero.
+    if(!(b.stats.totalCost > 0)){
+      fin = {pricePerSpot:fin.pricePerSpot, totalSlots:fin.totalSlots, maxMoney:fin.maxMoney, totalCost:fin.totalCost, soldSpots:fin.soldSpots, soldGMV:fin.soldGMV, soldCost:fin.soldCost, profit:0, status:'Break-even', feePct:fin.feePct, feeAmount:fin.feeAmount, payout:fin.payout};
+    }
     if(fin.status === 'Profit') countProfit++;
     else if(fin.status === 'Loss') countLoss++;
     else countBreakEven++;
