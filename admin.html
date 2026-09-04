@@ -2272,7 +2272,8 @@ function buildBoardRow(b){
   row.className = 'board-row';
   var profitVal = b.stats.pricePerSpot > 0 ? computeBoardFinancials(b).profit : 0;
   var statusClass = profitVal > 0 ? 'profit' : (profitVal < 0 ? 'loss' : 'breakeven');
-  var pnlBadge = ' <span class="status-badge '+statusClass+'">'+signedFmt(profitVal)+'</span>';
+  var statusText = profitVal > 0 ? 'Profit' : (profitVal < 0 ? 'Loss' : 'Break-even');
+  var pnlBadge = ' <span class="status-badge '+statusClass+'">'+statusText+'</span>';
   row.innerHTML =
     '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
     '<div class="board-row-main">'+
@@ -2488,10 +2489,11 @@ function buildSummaryRow(b, fin){
   var row = document.createElement('div');
   row.className = 'board-row';
   var statusClass = fin.profit > 0 ? 'profit' : (fin.profit < 0 ? 'loss' : 'breakeven');
+  var statusText = fin.profit > 0 ? 'Profit' : (fin.profit < 0 ? 'Loss' : 'Break-even');
   row.innerHTML =
     '<input type="checkbox" class="summary-select-chk" data-id="'+b.boardId+'" '+(selectedSummaryIds[b.boardId] ? 'checked' : '')+'>'+
     '<div class="board-row-main">'+
-      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span> <span class="status-badge '+statusClass+'">'+signedFmt(fin.profit)+'</span></div>'+
+      '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span> <span class="status-badge '+statusClass+'">'+statusText+'</span></div>'+
       '<div class="board-row-sub">'+b.sellerEmail+'</div>'+
     '</div>'+
     '<div class="board-row-stats">'+
