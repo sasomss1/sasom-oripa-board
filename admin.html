@@ -372,6 +372,7 @@
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
+      <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
       <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -613,6 +614,7 @@
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="change-btn" onclick="repairAllBoardStats()"><span data-th>ซ่อมตัวเลข Hit/Non-hit</span><span data-en>Repair Hit/Non-hit counts</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
+      <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
       <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -650,6 +652,7 @@
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
+      <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
       <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
         <div class="opt th">TH</div>
@@ -2079,6 +2082,7 @@ function maybeAutoSave(){
 // ============== BACKEND SYNC (Google Apps Script Web App) ==============
 // Paste your deployed Apps Script Web App URL here (see apps-script-backend.gs)
 var API_URL = 'https://script.google.com/macros/s/AKfycbwUZdHBcNITE9ds3nQsendjXfN7hTd6XFamolIDXhKFZRI4xINBnxbUHSTMr1FF60jb/exec';
+var GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1P_SrbHJQv94KDyVycjOU1TWMFhRZ0OtHldRNmzdC3-U/edit';
 
 function apiConfigured(){ return API_URL && API_URL.indexOf('http') === 0; }
 
