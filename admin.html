@@ -349,7 +349,10 @@
   #signInGate.hidden{display:none;}
   .signin-card{background:#fff; border-radius:20px; padding:40px 36px; box-shadow:0 20px 60px rgba(0,0,0,.15); text-align:center; max-width:360px; width:100%;}
   .signin-card h2{font-size:20px; font-weight:600; margin:0 0 20px;}
-  .signin-card #adminPasswordInput{width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px; border:1px solid var(--gray-line); background:var(--gray-bg); font-size:14px; font-family:inherit; text-align:center;}
+  .pw-field-wrap{position:relative;}
+  .signin-card #adminPasswordInput{width:100%; box-sizing:border-box; padding:12px 40px 12px 14px; border-radius:10px; border:1px solid var(--gray-line); background:var(--gray-bg); font-size:14px; font-family:inherit; text-align:center;}
+  .pw-eye{position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; user-select:none; font-size:16px; opacity:.55;}
+  .pw-eye:active{opacity:1;}
 </style>
 </head>
 <body>
@@ -358,7 +361,16 @@
 <div id="signInGate">
   <div class="signin-card">
     <h2><span data-th>SASOM Sign-in</span><span data-en>SASOM Sign-in</span></h2>
-    <input type="password" id="adminPasswordInput" placeholder="Password" onkeydown="if(event.key==='Enter') tryAdminPassword()">
+    <div class="pw-field-wrap">
+      <input type="password" id="adminPasswordInput" placeholder="Password" onkeydown="if(event.key==='Enter') tryAdminPassword()">
+      <span class="pw-eye"
+        onmousedown="document.getElementById('adminPasswordInput').type='text'"
+        onmouseup="document.getElementById('adminPasswordInput').type='password'"
+        onmouseleave="document.getElementById('adminPasswordInput').type='password'"
+        ontouchstart="event.preventDefault(); document.getElementById('adminPasswordInput').type='text'"
+        ontouchend="document.getElementById('adminPasswordInput').type='password'"
+      >👁</span>
+    </div>
     <div class="btn-confirm" style="margin-top:14px;" onclick="tryAdminPassword()"><span data-th>เข้าสู่ระบบ</span><span data-en>Sign in</span></div>
     <p id="signInError" class="hint" style="display:none; color:#C0392B; margin-top:16px;"></p>
   </div>
