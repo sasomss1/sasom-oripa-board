@@ -1423,6 +1423,34 @@ var boardColor = null; // {hex, th, en} — persisted with the board so it survi
 function openPicker(id){ document.getElementById(id).classList.add('open'); }
 function closePicker(id){ document.getElementById(id).classList.remove('open'); }
 
+// Generic Escape-to-close / Enter-to-confirm for every overlay modal.
+// editItemOverlay already has its own dedicated handler (set up when it
+// opens), so it's skipped here to avoid double-handling.
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape' && e.key !== 'Enter') return;
+  var openOverlay = document.querySelector('.overlay.open');
+  if(!openOverlay || openOverlay.id === 'editItemOverlay') return;
+
+  if(e.key === 'Escape'){
+    e.preventDefault();
+    closePicker(openOverlay.id);
+    return;
+  }
+
+  // Enter: click whichever confirm button is currently visible inside this
+  // overlay — multi-step wizards (e.g. the item-add flow) only show one
+  // step's button at a time, so this naturally follows the current step.
+  var buttons = openOverlay.querySelectorAll('.btn-confirm');
+  for(var i = 0; i < buttons.length; i++){
+    var b = buttons[i];
+    if(b.offsetParent !== null && !b.classList.contains('disabled') && b.style.pointerEvents !== 'none'){
+      e.preventDefault();
+      b.click();
+      break;
+    }
+  }
+});
+
 function setColorField(hex, nameTh, nameEn){
   var dot = document.getElementById('colorDot');
   var textEl = document.getElementById('colorFieldText');
