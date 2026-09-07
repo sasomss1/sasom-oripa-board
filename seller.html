@@ -173,7 +173,7 @@
     <div class="gate-card">
       <div class="field">
         <label><span data-th>SASOM Email</span><span data-en>SASOM Email</span></label>
-        <input type="text" id="emailInput" placeholder="sasomseller@email.com">
+        <input type="text" id="emailInput" placeholder="sasomseller@email.com" onkeydown="if(event.key==='Enter') tryEnter()">
       </div>
 
       <div class="btn-confirm" onclick="tryEnter()"><span data-th>เข้าสู่ระบบ</span><span data-en>Login</span></div>
