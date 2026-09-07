@@ -187,7 +187,7 @@
     <!-- LIST SUB-VIEW (default after login) -->
     <div id="boardsListSubView">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-        <div class="back-link" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></div>
+        <button class="change-btn" onclick="backToGate()"><span data-th>ออกจากระบบ / เปลี่ยนอีเมล</span><span data-en>Log out / switch email</span></button>
         <div style="display:flex; gap:8px;">
           <button class="change-btn" id="refreshBoardsBtn" onclick="refreshBoards()"><span data-th>รีเฟรช</span><span data-en>Refresh</span></button>
           <button class="btn-confirm" style="width:auto; padding:9px 16px; font-size:13px;" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
@@ -208,7 +208,7 @@
     <!-- DETAIL SUB-VIEW (shown after clicking a board) -->
     <div id="boardDetailSubView" style="display:none;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-        <div class="back-link" onclick="showBoardsList()" style="margin-bottom:0;">← <span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></div>
+        <button class="change-btn" onclick="showBoardsList()">← <span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
         <button class="change-btn" onclick="refreshBoards()"><span data-th>รีเฟรช</span><span data-en>Refresh</span></button>
       </div>
       <div id="boardDetail"></div>
