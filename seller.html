@@ -25,6 +25,16 @@
   .modal{width:100%; max-width:760px; background:#fff; border-radius:20px; padding:32px 36px 36px; box-shadow:0 10px 40px rgba(0,0,0,.08);}
   .modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:20px;}
   .modal-head h1{font-size:22px; font-weight:600; margin:0;}
+  .sasom-header-group{display:flex; align-items:center; gap:12px;}
+  .sasom-wordmark{font-size:14px; font-weight:600; color:var(--sub); letter-spacing:0.5px; flex-shrink:0;}
+  .head-right{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .dark-switch-label{font-size:12.5px; color:var(--sub); font-weight:500; margin-left:-4px;}
+  .switch{position:relative; display:inline-block; width:40px; height:22px; cursor:pointer; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0; position:absolute;}
+  .switch-track{position:absolute; inset:0; background:#D8D8D8; border-radius:999px; transition:background .15s;}
+  .switch-thumb{position:absolute; top:2px; left:2px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .switch input:checked + .switch-track{background:var(--dark);}
+  .switch input:checked + .switch-track .switch-thumb{transform:translateX(18px);}
   .toggle-pill{display:flex; background:var(--gray-bg); border-radius:999px; padding:3px; gap:2px; font-weight:500; font-size:13px; cursor:pointer; user-select:none; flex-shrink:0;}
   .toggle-pill .opt{padding:7px 16px; border-radius:999px; color:var(--sub); transition:.15s;}
   .toggle-pill .opt.active{background:var(--dark); color:#fff;}
@@ -150,6 +160,33 @@
   @keyframes spin{ to{ transform:rotate(360deg); } }
   .loading-text{font-size:13.5px; color:var(--sub); font-weight:500;}
   .inline-spinner{display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid var(--gray-line); border-top-color:var(--dark); animation:spin .7s linear infinite; vertical-align:middle;}
+
+  /* ===== Dark theme ===== */
+  [data-theme="dark"]{
+    --gray-bg:#2A2A2A;
+    --gray-line:#3A3A3A;
+    --sub:#999;
+  }
+  [data-theme="dark"] body{ background:#121212; color:#EDEDED; }
+  [data-theme="dark"] .modal{ background:#1C1C1C; box-shadow:0 10px 40px rgba(0,0,0,.5); }
+  [data-theme="dark"] .card{ background:#222; }
+  [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3{ color:#EDEDED; }
+  [data-theme="dark"] input:not([type="checkbox"]){ background:#2A2A2A; color:#EDEDED; }
+  [data-theme="dark"] .field label{ color:#CCC; }
+  [data-theme="dark"] .change-btn{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .btn-confirm{ background:var(--dark); }
+  [data-theme="dark"] .stat-card{ background:#2A2A2A; }
+  [data-theme="dark"] .stat-card .v{ color:#EDEDED; }
+  [data-theme="dark"] .board-row-stats b{ color:#EDEDED; }
+  [data-theme="dark"] .item{ background:#2A2A2A; }
+  [data-theme="dark"] .item-name{ color:#EDEDED; }
+  [data-theme="dark"] .item img{ background:#2A2A2A; }
+  [data-theme="dark"] .top-box{ background:#242424; }
+  [data-theme="dark"] .export-menu{ background:#242424; }
+  [data-theme="dark"] .count-box{ background:#2A2A2A; }
+  [data-theme="dark"] .error-box{ background:#3A2222; }
+  [data-theme="dark"] #loadingOverlay{ background:rgba(18,18,18,.92); }
+  [data-theme="dark"] .gate-card{ background:#1C1C1C; }
 </style>
 </head>
 <body>
@@ -161,10 +198,16 @@
 
 <div class="modal">
   <div class="modal-head">
-    <h1><span data-th>Seller Portal Oripa Board</span><span data-en>Seller Portal Oripa Board</span></h1>
-    <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
-      <div class="opt th">TH</div>
-      <div class="opt en active">EN</div>
+    <div class="sasom-header-group">
+      <span class="sasom-wordmark">SASOM</span>
+      <h1><span data-th>Seller Portal Oripa Board</span><span data-en>Seller Portal Oripa Board</span></h1>
+    </div>
+    <div class="head-right">
+      <label class="switch dark-switch">
+        <input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+      </label>
+      <span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
   </div>
 
@@ -723,6 +766,17 @@ function setLang(lang){
   document.querySelectorAll('.toggle-pill .opt.th, .toggle-pill .opt.en').forEach(function(o){ o.classList.remove('active'); });
   document.querySelectorAll('.toggle-pill .opt.'+lang).forEach(function(o){ o.classList.add('active'); });
 }
+
+function setDarkMode(isDark){
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  localStorage.setItem('sasom_dark_mode', isDark ? '1' : '0');
+  document.querySelectorAll('#darkModeToggle').forEach(function(el){ el.checked = isDark; });
+}
+
+(function initDarkMode(){
+  var saved = localStorage.getItem('sasom_dark_mode') === '1';
+  if(saved) setDarkMode(true);
+})();
 </script>
 </body>
 </html>
