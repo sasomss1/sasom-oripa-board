@@ -33,6 +33,9 @@
   .modal{width:100%; max-width:960px; background:#fff; border-radius:20px; padding:32px 36px 36px; box-shadow:0 10px 40px rgba(0,0,0,.08);}
   .modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:20px; flex-wrap:wrap;}
   .modal-head h1{font-size:22px; font-weight:600; margin:0;}
+  .sasom-header-group{display:flex; align-items:center; gap:12px;}
+  .sasom-wordmark{font-size:14px; font-weight:600; color:var(--sub); letter-spacing:0.5px; flex-shrink:0;}
+  .dark-switch-label{font-size:12.5px; color:var(--sub); font-weight:500; margin-left:-4px;}
   .head-right{display:flex; align-items:center; gap:12px;}
   .close-x{font-size:22px; color:var(--sub); cursor:pointer; line-height:1;}
 
@@ -353,6 +356,51 @@
   .signin-card #adminPasswordInput{width:100%; box-sizing:border-box; padding:12px 40px 12px 14px; border-radius:10px; border:1px solid var(--gray-line); background:var(--gray-bg); font-size:14px; font-family:inherit; text-align:center;}
   .pw-eye{position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; user-select:none; font-size:16px; opacity:.55;}
   .pw-eye:active{opacity:1;}
+  /* ===== Dark theme ===== */
+  /* Override the shared color variables first — since borders/backgrounds
+     throughout the app reference these directly, this alone fixes most of
+     them without needing a separate override per component. */
+  [data-theme="dark"]{
+    --gray-bg:#2A2A2A;
+    --gray-line:#3A3A3A;
+    --sub:#999;
+  }
+  [data-theme="dark"] body{ background:#121212; color:#EDEDED; }
+  [data-theme="dark"] .modal{ background:#1C1C1C; box-shadow:0 10px 40px rgba(0,0,0,.5); }
+  [data-theme="dark"] .card{ background:#222; }
+  [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3{ color:#EDEDED; }
+  [data-theme="dark"] input:not([type="checkbox"]), [data-theme="dark"] select{ background:#2A2A2A; color:#EDEDED; }
+  [data-theme="dark"] input::placeholder{ color:#888; }
+  [data-theme="dark"] .prefix-input span, [data-theme="dark"] .suffix-input span{ color:#CCC; }
+  [data-theme="dark"] .color-field, [data-theme="dark"] .email-field{ background:#2A2A2A; color:#EDEDED; }
+  [data-theme="dark"] .change-btn{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .btn-cancel{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .ls-btn{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .status-tab{ background:#242424; }
+  [data-theme="dark"] .badge-count{ background:#2A2A2A; color:#EDEDED; }
+  [data-theme="dark"] .stat-card{ background:#2A2A2A; }
+  [data-theme="dark"] .stat-card .v{ color:#EDEDED; }
+  [data-theme="dark"] .board-row-stats b{ color:#EDEDED; }
+  [data-theme="dark"] .board-group-header{ color:#999; }
+  [data-theme="dark"] .mini-item, [data-theme="dark"] .item{ background:#2A2A2A; }
+  [data-theme="dark"] .mini-item .mi-name, [data-theme="dark"] .item-name{ color:#EDEDED; }
+  [data-theme="dark"] .mini-item-list-empty{ color:#888; }
+  [data-theme="dark"] .top-box{ background:#242424; }
+  [data-theme="dark"] .top-box b, [data-theme="dark"] .lp-value, [data-theme="dark"] .seller-page-head .who b{ color:#EDEDED; }
+  [data-theme="dark"] .overlay{ background:rgba(0,0,0,.65); }
+  [data-theme="dark"] .pick-modal{ background:#1C1C1C; color:#EDEDED; }
+  [data-theme="dark"] .pick-modal-head h3{ color:#EDEDED; }
+  [data-theme="dark"] .pick-option, [data-theme="dark"] .type-cell, [data-theme="dark"] .grade-cell{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .grade-co-tab{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .export-menu{ background:#242424; }
+  [data-theme="dark"] .count-box{ background:#2A2A2A; }
+  [data-theme="dark"] .slot-pill{ background:#242424; color:#EDEDED; }
+  [data-theme="dark"] .mini-item img, [data-theme="dark"] .item img{ background:#2A2A2A; }
+  [data-theme="dark"] .signin-card{ background:#1C1C1C; }
+  [data-theme="dark"] .signin-card h2{ color:#EDEDED; }
+  [data-theme="dark"] .signin-card #adminPasswordInput{ background:#2A2A2A; color:#EDEDED; }
+  [data-theme="dark"] #signInGate{ background:#121212; }
+  [data-theme="dark"] #loadingOverlay{ background:rgba(18,18,18,.92); }
 </style>
 </head>
 <body>
@@ -385,16 +433,14 @@
   <div id="sellerSwitcher" style="display:none;"></div>
 
   <div class="modal-head">
-    <h1><span data-th>ขอสร้างบอร์ดใหม่</span><span data-en>Request New Board</span></h1>
+    <div class="sasom-header-group"><span class="sasom-wordmark">SASOM</span><h1><span data-th>ขอสร้างบอร์ดใหม่</span><span data-en>Request New Board</span></h1></div>
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
       <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
-      <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
-        <div class="opt th">TH</div>
-        <div class="opt en active">EN</div>
-      </div>
+      
+      <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
       <span class="close-x">✕</span>
     </div>
   </div>
@@ -586,12 +632,10 @@
 <!-- SELLER PAGE VIEW -->
 <div class="modal" id="sellerPageView">
   <div class="modal-head">
-    <h1><span data-th>หน้าบอร์ดของ Seller</span><span data-en>Seller Board Page</span></h1>
+    <div class="sasom-header-group"><span class="sasom-wordmark">SASOM</span><h1><span data-th>หน้าบอร์ดของ Seller</span><span data-en>Seller Board Page</span></h1></div>
     <div class="head-right">
-      <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
-        <div class="opt th">TH</div>
-        <div class="opt en active">EN</div>
-      </div>
+      
+      <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
   </div>
 
@@ -630,7 +674,7 @@
 <!-- ALL BOARDS LIST VIEW (opened via admin.html?view=boards) -->
 <div class="modal" id="boardsListView" style="display:none;">
   <div class="modal-head">
-    <h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1>
+    <div class="sasom-header-group"><span class="sasom-wordmark">SASOM</span><h1><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></h1></div>
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
       <button class="change-btn" onclick="exportSelectedBoards()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
@@ -639,10 +683,8 @@
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
       <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
-      <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
-        <div class="opt th">TH</div>
-        <div class="opt en active">EN</div>
-      </div>
+      
+      <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
   </div>
   <div id="boardsListSyncStatus" style="font-size:12px; color:var(--sub); margin-bottom:16px;"></div>
@@ -670,17 +712,15 @@
 <!-- SUMMARY VIEW (opened via admin.html?view=summary) — Admin-only profit/loss overview -->
 <div class="modal" id="summaryView" style="display:none;">
   <div class="modal-head">
-    <h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1>
+    <div class="sasom-header-group"><span class="sasom-wordmark">SASOM</span><h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1></div>
     <div class="head-right">
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
       <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
-      <div class="toggle-pill" onclick="setLang(document.documentElement.getAttribute('data-lang')==='th'?'en':'th')">
-        <div class="opt th">TH</div>
-        <div class="opt en active">EN</div>
-      </div>
+      
+      <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
   </div>
 
@@ -3172,6 +3212,17 @@ function setLang(lang){
   document.querySelectorAll('.toggle-pill .opt.th, .toggle-pill .opt.en').forEach(function(o){ o.classList.remove('active'); });
   document.querySelectorAll('.toggle-pill .opt.'+lang).forEach(function(o){ o.classList.add('active'); });
 }
+
+function setDarkMode(isDark){
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  localStorage.setItem('sasom_dark_mode', isDark ? '1' : '0');
+  document.querySelectorAll('#darkModeToggle').forEach(function(el){ el.checked = isDark; });
+}
+
+(function initDarkMode(){
+  var saved = localStorage.getItem('sasom_dark_mode') === '1';
+  if(saved) setDarkMode(true);
+})();
 
 // ============== ADMIN SIGN-IN (shared password) ==============
 var ADMIN_PASSWORD = 'SASOM888_oripa';
