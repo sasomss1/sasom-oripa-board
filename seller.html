@@ -89,7 +89,7 @@
   .item-list{display:flex; flex-direction:column; gap:10px;}
   .item{background:#fff; border:1px solid var(--gray-line); border-radius:14px; padding:12px 14px;}
   .item-top{display:flex; align-items:flex-start; gap:10px;}
-  .item-top img{width:34px; height:34px; border-radius:8px; object-fit:cover; flex-shrink:0; background:var(--gray-bg);}
+  .item-top img{width:70px; height:70px; border-radius:9px; object-fit:cover; flex-shrink:0; background:var(--gray-bg); cursor:zoom-in;}
   .item-badge{background:var(--dark); color:#fff; font-size:11px; font-weight:500; padding:3px 9px; border-radius:7px; flex-shrink:0;}
   .item-badges{display:flex; flex-wrap:wrap; gap:4px; flex-shrink:0; max-width:160px;}
   .item-info{flex:1; min-width:0;}
@@ -187,6 +187,12 @@
   [data-theme="dark"] .error-box{ background:#3A2222; }
   [data-theme="dark"] #loadingOverlay{ background:rgba(18,18,18,.92); }
   [data-theme="dark"] .gate-card{ background:#1C1C1C; }
+
+  #imgHoverPreview{position:fixed; display:none; z-index:10001; pointer-events:none; background:#fff; border-radius:12px; box-shadow:0 12px 34px rgba(0,0,0,.3); padding:5px;}
+  #imgHoverPreview img{width:150px; height:150px; object-fit:cover; border-radius:9px; display:block;}
+  #imageLightboxOverlay{position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10002; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
+  #imageLightboxOverlay.open{display:flex;}
+  #imageLightboxOverlay img{width:150px; height:150px; object-fit:cover; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.4);}
 </style>
 </head>
 <body>
@@ -195,6 +201,9 @@
   <div class="loading-spinner"></div>
   <div class="loading-text"><span data-th>กำลังโหลดข้อมูล...</span><span data-en>Loading data...</span></div>
 </div>
+
+<div id="imgHoverPreview"><img src="" alt=""></div>
+<div id="imageLightboxOverlay" onclick="closeImageLightbox()"><img id="lightboxImg" src="" alt=""></div>
 
 <div class="modal">
   <div class="modal-head">
@@ -674,7 +683,7 @@ function renderBoard(){
     var soldQty = soldQtyByUid[key] || 0;
     var isFullySold = e.qty > 0 && soldQty >= e.qty;
     html += '<div class="item'+(isFullySold?' item-sold':'')+'"><div class="item-top">'+
-      (e.img ? '<img loading="lazy" src="'+e.img+'" onerror="this.style.display=\'none\';">' : '')+
+      (e.img ? '<img loading="lazy" src="'+e.img+'" onerror="this.style.display=\'none\';" onmouseenter="showImgPreview(\''+e.img+'\', event)" onmousemove="positionImgPreview(event)" onmouseleave="hideImgPreview()" onclick="event.stopPropagation(); openImageLightbox(\''+e.img+'\')">' : '')+
       '<span class="item-badge">'+rangeLabel+'</span>'+
       '<div class="item-info"><div class="item-name">'+e.label+'</div><div class="item-sub">'+(e.condition||'')+(e.nonHit ? ' · non-hit' : '')+'</div></div>'+
       '<div class="item-price">'+fmtPrice(e.price)+' × '+e.qty+'</div>'+
@@ -728,7 +737,7 @@ function renderBoard(){
           var badgeNums = r.slots ? r.slots : (slotMap[r.uid || r.label] ? [slotMap[r.uid || r.label].start] : []);
           var badgesHtml = badgeNums.map(function(n){ return '<span class="item-badge">S-'+String(n).padStart(3,'0')+'</span>'; }).join('');
           html += '<div class="item"><div class="item-top">'+
-            (entry.img ? '<img loading="lazy" src="'+entry.img+'" onerror="this.style.display=\'none\';">' : '')+
+            (entry.img ? '<img loading="lazy" src="'+entry.img+'" onerror="this.style.display=\'none\';" onmouseenter="showImgPreview(\''+entry.img+'\', event)" onmousemove="positionImgPreview(event)" onmouseleave="hideImgPreview()" onclick="event.stopPropagation(); openImageLightbox(\''+entry.img+'\')">' : '')+
             '<div class="item-badges">'+badgesHtml+'</div>'+
             '<div class="item-info"><div class="item-name">'+r.label+'</div><div class="item-sub">'+(entry.condition||'')+'</div></div>'+
             '<div class="item-price">'+fmtPrice(entry.price)+' × '+r.qty+'</div>'+
@@ -759,6 +768,39 @@ function renderBoard(){
     '</div></div>';
 
   wrap.innerHTML = html;
+}
+
+// ============== IMAGE HOVER PREVIEW / LIGHTBOX (shared by all product thumbnails) ==============
+function showImgPreview(src, evt){
+  if(!src) return;
+  var prev = document.getElementById('imgHoverPreview');
+  prev.querySelector('img').src = src;
+  prev.style.display = 'block';
+  positionImgPreview(evt);
+}
+function positionImgPreview(evt){
+  var prev = document.getElementById('imgHoverPreview');
+  if(prev.style.display !== 'block') return;
+  var x = evt.clientX + 18;
+  var y = evt.clientY + 18;
+  var maxX = window.innerWidth - 170;
+  var maxY = window.innerHeight - 170;
+  if(x > maxX) x = evt.clientX - 176;
+  if(y > maxY) y = evt.clientY - 176;
+  prev.style.left = x + 'px';
+  prev.style.top = y + 'px';
+}
+function hideImgPreview(){
+  document.getElementById('imgHoverPreview').style.display = 'none';
+}
+function openImageLightbox(src){
+  if(!src) return;
+  hideImgPreview();
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('imageLightboxOverlay').classList.add('open');
+}
+function closeImageLightbox(){
+  document.getElementById('imageLightboxOverlay').classList.remove('open');
 }
 
 function setLang(lang){
