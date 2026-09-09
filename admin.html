@@ -36,6 +36,13 @@
   .sasom-header-group{display:flex; align-items:center; gap:12px;}
   .sasom-wordmark{font-size:14px; font-weight:600; color:var(--sub); letter-spacing:0.5px; flex-shrink:0;}
   .dark-switch-label{font-size:12.5px; color:var(--sub); font-weight:500; margin-left:-4px;}
+  .admin-footer-row{display:flex; justify-content:center; gap:10px; margin-top:24px; padding-top:20px; border-top:1px solid var(--gray-line);}
+
+  #imgHoverPreview{position:fixed; display:none; z-index:10001; pointer-events:none; background:#fff; border-radius:12px; box-shadow:0 12px 34px rgba(0,0,0,.3); padding:5px;}
+  #imgHoverPreview img{width:150px; height:150px; object-fit:cover; border-radius:9px; display:block;}
+  #imageLightboxOverlay{position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10002; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
+  #imageLightboxOverlay.open{display:flex;}
+  #imageLightboxOverlay img{width:150px; height:150px; object-fit:cover; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.4);}
   .head-right{display:flex; align-items:center; gap:12px;}
   .close-x{font-size:22px; color:var(--sub); cursor:pointer; line-height:1;}
 
@@ -136,8 +143,8 @@
   .mini-item-list.drag-over-container{outline:2px dashed var(--dark); outline-offset:-4px; border-radius:12px;}
   .mini-item-list-empty.drag-over-container{border-color:var(--dark); color:var(--dark);}
   .mi-drag{color:#B5B5B5; cursor:grab; font-size:16px; flex-shrink:0; line-height:1;}
-  .mini-item img{width:32px; height:32px; border-radius:7px; object-fit:cover; flex-shrink:0; background:#fff;}
-  .mini-item .mi-noimg{width:32px; height:32px; border-radius:7px; background:#E2E2E2; flex-shrink:0;}
+  .mini-item img{width:70px; height:70px; border-radius:9px; object-fit:cover; flex-shrink:0; background:#fff; cursor:zoom-in; image-rendering:auto;}
+  .mini-item .mi-noimg{width:70px; height:70px; border-radius:9px; background:#E2E2E2; flex-shrink:0;}
   .mini-item .mi-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;}
   .mini-item .mi-sub{color:var(--sub); font-size:11.5px; margin-top:1px;}
   .mini-item .mi-price{font-weight:500; white-space:nowrap;}
@@ -429,6 +436,9 @@
   <div class="loading-text"><span data-th>กำลังโหลดข้อมูล...</span><span data-en>Loading data...</span></div>
 </div>
 
+<div id="imgHoverPreview"><img src="" alt=""></div>
+<div id="imageLightboxOverlay" onclick="closeImageLightbox()"><img id="lightboxImg" src="" alt=""></div>
+
 <div class="modal" id="formView">
   <div id="sellerSwitcher" style="display:none;"></div>
 
@@ -437,8 +447,6 @@
     <div class="head-right">
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=summary'"><span data-th>สรุปกำไร</span><span data-en>Summary</span></button>
-      <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
-      <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       
       <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
@@ -626,6 +634,11 @@
     <div class="btn-confirm" onclick="confirmBoard()"><span data-th>ยืนยัน</span><span data-en>Confirm</span></div>
   </div>
   <div id="syncStatus" style="text-align:center; margin-top:10px; font-size:12px; color:var(--sub);"></div>
+
+  <div class="admin-footer-row">
+    <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
+    <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
+  </div>
 </div>
 
 <!-- SELLER PAGE VIEW -->
@@ -680,8 +693,6 @@
       <button class="change-btn danger" onclick="deleteSelectedBoards()"><span data-th>ลบที่เลือก</span><span data-en>Delete Selected</span></button>
       <button class="change-btn" onclick="repairAllBoardStats()"><span data-th>ซ่อมตัวเลข Hit/Non-hit</span><span data-en>Repair Hit/Non-hit counts</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
-      <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
-      <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       
       <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
@@ -706,6 +717,11 @@
   </div>
 
   <div id="boardsListWrap"></div>
+
+  <div class="admin-footer-row">
+    <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
+    <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
+  </div>
 </div>
 
 <!-- SUMMARY VIEW (opened via admin.html?view=summary) — Admin-only profit/loss overview -->
@@ -716,8 +732,6 @@
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
-      <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
-      <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
       
       <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
@@ -746,6 +760,11 @@
   </div>
 
   <div id="summaryListWrap"></div>
+
+  <div class="admin-footer-row">
+    <button class="change-btn" onclick="window.open(GOOGLE_SHEET_URL, '_blank')">Data</button>
+    <button class="change-btn" onclick="signOutAdmin()"><span data-th>ออกจากระบบ</span><span data-en>Logout</span></button>
+  </div>
 </div>
 
 <!-- COLOR PICKER -->
@@ -1139,7 +1158,40 @@ function buildTierRows(){
 }
 
 function miniImgHtml(img){
-  return img ? '<img loading="lazy" src="'+img+'" onerror="imgFallback(this,\'mi-noimg\')">' : '<div class="mi-noimg"></div>';
+  return img ? '<img loading="lazy" src="'+img+'" onerror="imgFallback(this,\'mi-noimg\')" onmouseenter="showImgPreview(\''+img+'\', event)" onmousemove="positionImgPreview(event)" onmouseleave="hideImgPreview()" onclick="event.stopPropagation(); openImageLightbox(\''+img+'\')">' : '<div class="mi-noimg"></div>';
+}
+
+// ============== IMAGE HOVER PREVIEW / LIGHTBOX (shared by all product thumbnails) ==============
+function showImgPreview(src, evt){
+  if(!src) return;
+  var prev = document.getElementById('imgHoverPreview');
+  prev.querySelector('img').src = src;
+  prev.style.display = 'block';
+  positionImgPreview(evt);
+}
+function positionImgPreview(evt){
+  var prev = document.getElementById('imgHoverPreview');
+  if(prev.style.display !== 'block') return;
+  var x = evt.clientX + 18;
+  var y = evt.clientY + 18;
+  var maxX = window.innerWidth - 170;
+  var maxY = window.innerHeight - 170;
+  if(x > maxX) x = evt.clientX - 176;
+  if(y > maxY) y = evt.clientY - 176;
+  prev.style.left = x + 'px';
+  prev.style.top = y + 'px';
+}
+function hideImgPreview(){
+  document.getElementById('imgHoverPreview').style.display = 'none';
+}
+function openImageLightbox(src){
+  if(!src) return;
+  hideImgPreview();
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('imageLightboxOverlay').classList.add('open');
+}
+function closeImageLightbox(){
+  document.getElementById('imageLightboxOverlay').classList.remove('open');
 }
 
 function padSlot(n){ return 'S-'+String(n).padStart(3,'0'); }
@@ -2063,7 +2115,7 @@ function openSalesModal(idx){
     row.dataset.uid = item.uid;
     row.dataset.qty = item.qty;
 
-    var thumb = item.img ? '<img loading="lazy" src="'+item.img+'" onerror="imgFallback(this,\'sr-noimg\')">' : '<div class="sr-noimg"></div>';
+    var thumb = item.img ? '<img loading="lazy" src="'+item.img+'" onerror="imgFallback(this,\'sr-noimg\')" onmouseenter="showImgPreview(\''+item.img+'\', event)" onmousemove="positionImgPreview(event)" onmouseleave="hideImgPreview()" onclick="event.stopPropagation(); openImageLightbox(\''+item.img+'\')">' : '<div class="sr-noimg"></div>';
     var subParts = [];
     if(item.sku) subParts.push('SKU · '+item.sku);
     if(item.condition) subParts.push(item.condition);
