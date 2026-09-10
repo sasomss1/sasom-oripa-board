@@ -3037,6 +3037,38 @@ function onCsvFileChosen(event){
 // currently in the form fields. Called both right after picking the file and
 // again whenever the hit-row cutoff is changed afterward, so the cutoff
 // always takes effect — even if it's typed in after the file was chosen.
+// Scans every row/column of the raw CSV table for known label cells (e.g.
+// "Board Name") sitting next to their value in the following column — this
+// is how the source sheet's side-panel (Board Setup) fields are laid out,
+// separate from the main item table. Returns whatever it finds; anything
+// not found is left out so the caller can fall back to the current form value.
+function scanCsvBoardMeta(table){
+  var meta = {};
+  var wanted = {
+    'price (slot)': 'pricePerSlot',
+    'board name': 'boardName',
+    'seller email': 'sellerEmail',
+    'status board': 'statusBoard'
+  };
+  for(var r = 0; r < table.length; r++){
+    var row = table[r];
+    for(var c = 0; c < row.length; c++){
+      var label = (row[c] || '').trim().toLowerCase();
+      if(wanted[label] && row[c+1] != null && row[c+1].trim() !== ''){
+        meta[wanted[label]] = row[c+1].trim();
+      }
+    }
+  }
+  if(meta.pricePerSlot != null){
+    meta.pricePerSlot = +meta.pricePerSlot.replace(/[^0-9.\-]/g,'') || 0;
+  }
+  if(meta.statusBoard != null){
+    var s = meta.statusBoard.toUpperCase();
+    meta.statusBoard = (s === 'ON' || s === 'OFF' || s === 'PREPARE') ? s : null;
+  }
+  return meta;
+}
+
 function reparseCsvNow(){
   if(!lastCsvFileText) return;
   try{
@@ -3045,6 +3077,23 @@ function reparseCsvNow(){
     var nonHitThreshold = 5;
     var result = parseCsvImportData(lastCsvFileText, year, hitCutoff, nonHitThreshold);
     parsedCsvImport = result;
+
+    // Auto-fill Board Name / Price per Spot from the sheet's own side-panel
+    // labels when found — still fully editable/clearable afterward, this is
+    // just a starting guess so you don't have to type it in by hand.
+    var meta = scanCsvBoardMeta(parseCSV(lastCsvFileText));
+    if(meta.boardName) document.getElementById('csvBoardName').value = meta.boardName;
+    if(meta.pricePerSlot) document.getElementById('csvPricePerSpot').value = meta.pricePerSlot;
+    if(meta.sellerEmail){
+      currentSellerEmail = meta.sellerEmail;
+      if(sellerEmails.indexOf(meta.sellerEmail) === -1){ sellerEmails.push(meta.sellerEmail); buildSellerOptions(); saveSellerEmailsToServer(); }
+      var el = document.getElementById('sellerEmailText');
+      el.classList.remove('placeholder');
+      el.textContent = meta.sellerEmail;
+    }
+    if(meta.statusBoard) setCsvStatus(meta.statusBoard);
+    result.detectedMeta = meta;
+
     renderCsvPreview(result);
     var btn = document.getElementById('csvImportConfirmBtn');
     btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
@@ -3224,12 +3273,25 @@ function renderCsvPreview(result){
       result.skuPriceConflicts.map(function(c){ return c.sku + ': ' + c.prices.map(function(p){ return fmt(p); }).join(', '); }).join('<br>')+
     '</div>';
   }
+  var detectedHtml = '';
+  var meta = result.detectedMeta || {};
+  var found = [];
+  if(meta.boardName) found.push('Board Name: "'+meta.boardName+'"');
+  if(meta.pricePerSlot) found.push('Price (slot): '+fmt(meta.pricePerSlot));
+  if(meta.sellerEmail) found.push('Seller Email: '+meta.sellerEmail);
+  if(meta.statusBoard) found.push('Status Board: '+meta.statusBoard);
+  if(found.length){
+    detectedHtml = '<div class="hint" style="color:#2E7D32; background:#EAF7EA; padding:10px 14px; border-radius:10px; margin-top:10px;">'+
+      '<b><span data-th>อ่านค่าจากไฟล์ให้อัตโนมัติ (แก้ไขได้ถ้าไม่ตรง):</span><span data-en>Auto-detected from the file (edit if wrong):</span></b><br>'+
+      found.join('<br>')+
+    '</div>';
+  }
   box.innerHTML =
     '<div class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-top:6px;">'+
       '<div class="stat-card"><div class="l">Hit items</div><div class="v">'+result.hitCount+'</div></div>'+
       '<div class="stat-card"><div class="l">Non-hit qty</div><div class="v">'+result.nonHitCount+'</div></div>'+
       '<div class="stat-card"><div class="l">Live sessions found</div><div class="v">'+result.sessionCount+'</div></div>'+
-    '</div>' + warningHtml;
+    '</div>' + detectedHtml + warningHtml;
 }
 
 function confirmCsvImport(){
