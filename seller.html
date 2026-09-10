@@ -89,7 +89,7 @@
   .item-list{display:flex; flex-direction:column; gap:10px;}
   .item{background:#fff; border:1px solid var(--gray-line); border-radius:14px; padding:12px 14px;}
   .item-top{display:flex; align-items:flex-start; gap:10px;}
-  .item-top img{width:70px; height:70px; border-radius:9px; object-fit:cover; flex-shrink:0; background:var(--gray-bg); cursor:zoom-in;}
+  .item-top img{width:70px; height:70px; border-radius:9px; object-fit:contain; flex-shrink:0; background:var(--gray-bg); cursor:zoom-in;}
   .item-badge{background:var(--dark); color:#fff; font-size:11px; font-weight:500; padding:3px 9px; border-radius:7px; flex-shrink:0;}
   .item-badges{display:flex; flex-wrap:wrap; gap:4px; flex-shrink:0; max-width:160px;}
   .item-info{flex:1; min-width:0;}
@@ -189,10 +189,10 @@
   [data-theme="dark"] .gate-card{ background:#1C1C1C; }
 
   #imgHoverPreview{position:fixed; display:none; z-index:10001; pointer-events:none; background:#fff; border-radius:12px; box-shadow:0 12px 34px rgba(0,0,0,.3); padding:5px;}
-  #imgHoverPreview img{width:150px; height:150px; object-fit:cover; border-radius:9px; display:block;}
+  #imgHoverPreview img{width:150px; height:150px; object-fit:contain; border-radius:9px; display:block; background:#fff;}
   #imageLightboxOverlay{position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10002; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
   #imageLightboxOverlay.open{display:flex;}
-  #imageLightboxOverlay img{width:150px; height:150px; object-fit:cover; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.4);}
+  #imageLightboxOverlay img{width:150px; height:150px; object-fit:contain; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.4); background:#fff;}
 </style>
 </head>
 <body>
