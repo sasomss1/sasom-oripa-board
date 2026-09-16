@@ -39,10 +39,10 @@
   .admin-footer-row{display:flex; justify-content:center; gap:10px; margin-top:24px; padding-top:20px; border-top:1px solid var(--gray-line);}
 
   #imgHoverPreview{position:fixed; display:none; z-index:10001; pointer-events:none; background:#fff; border-radius:12px; box-shadow:0 12px 34px rgba(0,0,0,.3); padding:5px;}
-  #imgHoverPreview img{width:150px; height:150px; object-fit:contain; border-radius:9px; display:block; background:#fff;}
+  #imgHoverPreview img{width:260px; height:260px; object-fit:contain; border-radius:11px; display:block; background:#fff;}
   #imageLightboxOverlay{position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10002; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
   #imageLightboxOverlay.open{display:flex;}
-  #imageLightboxOverlay img{width:150px; height:150px; object-fit:contain; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.4); background:#fff;}
+  #imageLightboxOverlay img{width:min(92vw, 820px); height:min(92vh, 820px); object-fit:contain; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.5); background:#fff; image-rendering:auto;}
   .head-right{display:flex; align-items:center; gap:12px;}
   .close-x{font-size:22px; color:var(--sub); cursor:pointer; line-height:1;}
 
@@ -271,6 +271,10 @@
   .live-session-top{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
   .live-session-date{font-weight:600; font-size:14px;}
   .live-session-meta{font-size:12px; color:var(--sub); margin-top:2px;}
+  .live-buyer-list{margin-top:6px; padding-top:6px; border-top:1px dashed var(--gray-line); display:flex; flex-direction:column; gap:3px;}
+  .buyer-row{font-size:11.5px; color:var(--sub);}
+  .buyer-row b{color:var(--dark); font-weight:600;}
+  .buyer-slot{background:var(--dark); color:#fff; font-size:10px; font-weight:600; padding:2px 6px; border-radius:5px; margin-right:4px;}
   .live-session-actions{display:flex; gap:8px;}
   .live-pay-status-row{display:flex; justify-content:flex-end; margin-top:10px;}
   .pay-status{width:auto; border:1px solid var(--gray-line); border-radius:8px; padding:7px 12px; font-size:12px; font-weight:600; background:#F5F5F5; color:var(--sub); appearance:auto;}
@@ -391,6 +395,7 @@
   [data-theme="dark"] .board-group-header{ color:#999; }
   [data-theme="dark"] .mini-item, [data-theme="dark"] .item{ background:#2A2A2A; }
   [data-theme="dark"] .mini-item .mi-name, [data-theme="dark"] .item-name{ color:#EDEDED; }
+  [data-theme="dark"] .buyer-row b{ color:#EDEDED; }
   [data-theme="dark"] .mini-item-list-empty{ color:#888; }
   [data-theme="dark"] .top-box{ background:#242424; }
   [data-theme="dark"] .top-box b, [data-theme="dark"] .lp-value, [data-theme="dark"] .seller-page-head .who b{ color:#EDEDED; }
@@ -1101,6 +1106,25 @@ function boardToCSVRows(entry){
     var payout = saleValue - feeAmount;
     rows.push([s.date, s.note||'', soldQty, saleValue, feePct, feeAmount, payout, s.paymentStatus||'PENDING']);
   });
+  rows.push([]);
+
+  var buyerRows = [];
+  (entry.liveSessions||[]).forEach(function(s){
+    (s.sales||[]).forEach(function(r){
+      if(!r.sold) return;
+      if(r.buyers){
+        r.buyers.forEach(function(b){
+          if(b.buyerName || b.buyerEmail) buyerRows.push([s.date, 'S-'+String(b.slot).padStart(3,'0'), r.label, b.buyerName||'', b.buyerEmail||'']);
+        });
+      } else if(r.buyerName || r.buyerEmail){
+        buyerRows.push([s.date, '', r.label, r.buyerName||'', r.buyerEmail||'']);
+      }
+    });
+  });
+  if(buyerRows.length){
+    rows.push(['Live Date', 'Slot', 'Product', 'Buyer Name', 'Buyer Email']);
+    buyerRows.forEach(function(br){ rows.push(br); });
+  }
   return rows;
 }
 
@@ -1174,10 +1198,10 @@ function positionImgPreview(evt){
   if(prev.style.display !== 'block') return;
   var x = evt.clientX + 18;
   var y = evt.clientY + 18;
-  var maxX = window.innerWidth - 170;
-  var maxY = window.innerHeight - 170;
-  if(x > maxX) x = evt.clientX - 176;
-  if(y > maxY) y = evt.clientY - 176;
+  var maxX = window.innerWidth - 280;
+  var maxY = window.innerHeight - 280;
+  if(x > maxX) x = evt.clientX - 286;
+  if(y > maxY) y = evt.clientY - 286;
   prev.style.left = x + 'px';
   prev.style.top = y + 'px';
 }
@@ -1992,12 +2016,29 @@ function renderLiveHistory(){
       });
     }
 
+    var buyerRows = [];
+    s.sales.forEach(function(r){
+      if(!r.sold) return;
+      if(r.buyers){
+        r.buyers.forEach(function(b){
+          if(b.buyerName || b.buyerEmail){
+            buyerRows.push('<div class="buyer-row"><span class="buyer-slot">S-'+String(b.slot).padStart(3,'0')+'</span> '+r.label+' — <b>'+(b.buyerName||'—')+'</b> · '+(b.buyerEmail||'—')+'</div>');
+          }
+        });
+      } else if(r.buyerName || r.buyerEmail){
+        buyerRows.push('<div class="buyer-row">'+r.label+' — <b>'+(r.buyerName||'—')+'</b> · '+(r.buyerEmail||'—')+'</div>');
+      }
+    });
+    var buyerListHtml = buyerRows.length ? '<div class="live-buyer-list">'+buyerRows.join('')+'</div>' : '';
+
     var div = document.createElement('div');
     div.className = 'live-session';
     div.innerHTML =
       '<div class="live-session-top">'+
         '<div><div class="live-session-date">'+formatDateDMY(s.date)+(s.note ? ' · '+s.note : '')+'</div>'+
-        '<div class="live-session-meta">'+(s.sales.length ? (soldCount+' <span data-th>รายการขายแล้ว</span><span data-en>items sold</span> · '+soldQty+' <span data-th>ช่อง</span><span data-en>spots</span>') : '<span data-th>ยังไม่ได้บันทึกยอดขาย</span><span data-en>No sales recorded yet</span>')+'</div></div>'+
+        '<div class="live-session-meta">'+(s.sales.length ? (soldCount+' <span data-th>รายการขายแล้ว</span><span data-en>items sold</span> · '+soldQty+' <span data-th>ช่อง</span><span data-en>spots</span>') : '<span data-th>ยังไม่ได้บันทึกยอดขาย</span><span data-en>No sales recorded yet</span>')+'</div>'+
+        buyerListHtml+
+        '</div>'+
         '<div class="live-session-actions">'+
           '<button class="ls-btn" onclick="openSalesModal('+i+')"><span data-th>บันทึกยอดขาย</span><span data-en>Record sales</span></button>'+
           '<button class="ls-btn danger" onclick="removeLiveSession('+s.id+')">×</button>'+
@@ -3115,11 +3156,18 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   var idx = {
     product: col('product'), sku: col('sku'), nickname: col('nick name'),
     condition: col('condition'), price: col('price'), sasomLink: col('sasom link'),
-    imgLink: col('img link'), sold: col('sold'), date: col('date')
+    imgLink: col('img link'),
+    // "System Sold" / "Systerm Date" are the system-tracked columns and take
+    // priority when present (more reliable than the manually-typed "Sold" /
+    // "Date" columns) — falls back to the old columns for older exports that
+    // don't have the System* columns yet.
+    sold: col('system sold') >= 0 ? col('system sold') : col('sold'),
+    date: col('systerm date') >= 0 ? col('systerm date') : col('date'),
+    buyerName: col('buyer name'), buyerEmail: col('buyer email')
   };
   if(idx.condition < 0 || idx.price < 0) throw new Error('CSV is missing required "Condition" or "Price" columns');
 
-  var groups = {}; // key -> {name, sku, img, condition, price, units:[{sold,date}]}
+  var groups = {}; // key -> {name, sku, img, condition, price, units:[{sold,date,buyerName,buyerEmail}]}
   var order = [];
   var hitRows = []; // used only in cutoff mode: individual hit rows, in order, never merged
   var useCutoff = hitCutoff > 0;
@@ -3136,6 +3184,8 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     var imgLink = get(idx.imgLink);
     var sold = isSoldValue(get(idx.sold));
     var date = normalizeDate(get(idx.date), assumedYear);
+    var buyerName = get(idx.buyerName);
+    var buyerEmail = get(idx.buyerEmail);
 
     if(!product && !condition && !price) continue; // skip fully blank rows
 
@@ -3143,7 +3193,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     var name = nickname ? (product ? (product + ' (' + nickname + ')') : nickname) : (product || condition || 'Item');
 
     if(useCutoff && dataRowIndex <= hitCutoff){
-      hitRows.push({name:name, sku:sku, img:imgLink, condition:condition, price:price, sold:sold, date:date});
+      hitRows.push({name:name, sku:sku, img:imgLink, condition:condition, price:price, sold:sold, date:date, buyerName:buyerName, buyerEmail:buyerEmail});
     } else {
       // Grouped by SKU + price (falling back to name+condition+price when SKU
       // is blank). Same SKU at a different price is treated as a distinct
@@ -3155,18 +3205,18 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
       } else if(!groups[key].img && imgLink){
         groups[key].img = imgLink; // fill in image from a later duplicate row if the first was blank
       }
-      groups[key].units.push({sold:sold, date:date});
+      groups[key].units.push({sold:sold, date:date, buyerName:buyerName, buyerEmail:buyerEmail});
     }
   }
 
   var hitItems = [], nonHitItems = [];
-  var soldByUid = {}; // uid -> array of {sold,date} per physical unit, in original row order
+  var soldByUid = {}; // uid -> array of {sold,date,buyerName,buyerEmail} per physical unit, in original row order
 
   // Cutoff mode: hit rows are individual entries, in original order, never merged
   hitRows.forEach(function(hr){
     var uid = genUid();
     hitItems.push({uid:uid, name:hr.name, sku:hr.sku, img:hr.img, condition:hr.condition, price:hr.price});
-    soldByUid[uid] = [{sold:hr.sold, date:hr.date}];
+    soldByUid[uid] = [{sold:hr.sold, date:hr.date, buyerName:hr.buyerName, buyerEmail:hr.buyerEmail}];
   });
 
   // Auto-detect mode: a group is Non-hit only if it repeats a LOT — a card
@@ -3186,7 +3236,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     } else {
       nonHitItems.push({uid:uid, name:g.name, sku:g.sku, img:g.img, condition:g.condition, isRaw:g.condition==='Raw', price:g.price, qty:g.units.length});
     }
-    soldByUid[uid] = g.units.map(function(u){ return {sold:u.sold, date:u.date}; });
+    soldByUid[uid] = g.units.map(function(u){ return {sold:u.sold, date:u.date, buyerName:u.buyerName, buyerEmail:u.buyerEmail}; });
   });
 
   // Assign absolute slot numbers the same way the rest of the app does:
@@ -3206,10 +3256,10 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   });
 
   // Now that slots are correctly numbered, build sold events per date
-  var soldEvents = []; // {uid, date, unitIndex}
+  var soldEvents = []; // {uid, date, unitIndex, buyerName, buyerEmail}
   Object.keys(soldByUid).forEach(function(uid){
     soldByUid[uid].forEach(function(u, i){
-      if(u.sold && u.date) soldEvents.push({uid:uid, date:u.date, unitIndex:i});
+      if(u.sold && u.date) soldEvents.push({uid:uid, date:u.date, unitIndex:i, buyerName:u.buyerName, buyerEmail:u.buyerEmail});
     });
   });
 
@@ -3217,7 +3267,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   soldEvents.forEach(function(ev){
     if(!byDate[ev.date]) byDate[ev.date] = {};
     if(!byDate[ev.date][ev.uid]) byDate[ev.date][ev.uid] = [];
-    byDate[ev.date][ev.uid].push(ev.unitIndex);
+    byDate[ev.date][ev.uid].push({unitIndex: ev.unitIndex, buyerName: ev.buyerName, buyerEmail: ev.buyerEmail});
   });
 
   var itemCursor = {}; // uid -> how many of its slots already consumed by an earlier date, in row order
@@ -3227,15 +3277,17 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
       var item = hitItems.find(function(h){ return h.uid===uid; }) || nonHitItems.find(function(n){ return n.uid===uid; }) || {};
       var label = item.name || '';
       var totalQty = item.qty || 1;
-      var qty = byDate[date][uid].length;
+      var units = byDate[date][uid];
+      var qty = units.length;
       if(totalQty === 1){
-        sales.push({uid:uid, label:label, sold:true, qty:1});
+        sales.push({uid:uid, label:label, sold:true, qty:1, buyerName: units[0].buyerName || '', buyerEmail: units[0].buyerEmail || ''});
       } else {
         var start = itemCursor[uid] || 0;
         var allSlots = slotOf[uid] || [];
         var slots = allSlots.slice(start, start + qty);
         itemCursor[uid] = start + qty;
-        sales.push({uid:uid, label:label, sold:true, qty:qty, slots:slots});
+        var buyers = units.map(function(u, i){ return {slot: slots[i], buyerName: u.buyerName || '', buyerEmail: u.buyerEmail || ''}; });
+        sales.push({uid:uid, label:label, sold:true, qty:qty, slots:slots, buyers:buyers});
       }
     });
     return {id: Date.now() + Math.random(), date:date, note:'', sales:sales, paymentStatus:'PENDING'};
