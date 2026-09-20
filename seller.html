@@ -189,10 +189,10 @@
   [data-theme="dark"] .gate-card{ background:#1C1C1C; }
 
   #imgHoverPreview{position:fixed; display:none; z-index:10001; pointer-events:none; background:#fff; border-radius:12px; box-shadow:0 12px 34px rgba(0,0,0,.3); padding:5px;}
-  #imgHoverPreview img{width:150px; height:150px; object-fit:contain; border-radius:9px; display:block; background:#fff;}
+  #imgHoverPreview img{width:260px; height:260px; object-fit:contain; border-radius:11px; display:block; background:#fff;}
   #imageLightboxOverlay{position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:10002; display:none; align-items:center; justify-content:center; cursor:zoom-out;}
   #imageLightboxOverlay.open{display:flex;}
-  #imageLightboxOverlay img{width:150px; height:150px; object-fit:contain; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,.4); background:#fff;}
+  #imageLightboxOverlay img{width:min(92vw, 820px); height:min(92vh, 820px); object-fit:contain; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.5); background:#fff; image-rendering:auto;}
 </style>
 </head>
 <body>
@@ -277,6 +277,7 @@ var myBoards = [];
 var currentBoardIdx = 0;
 
 function fmt(n){ return '฿' + Math.round(n).toLocaleString('en-US'); }
+function fmt2(n){ return '฿' + (n||0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtPrice(n){ return n ? fmt(n) : '—'; }
 function signedFmt(n){
   if(n > 0) return '+' + fmt(n);
@@ -746,8 +747,8 @@ function renderBoard(){
         html += '</div>';
         html += '<div class="live-pay-grid">'+
           '<div class="lp-box"><div class="lp-label"><span data-th>ยอดขาย</span><span data-en>Sale value</span></div><div class="lp-value">'+fmt(saleValue)+'</div></div>'+
-          '<div class="lp-box"><div class="lp-label"><span data-th>หัก '+feePct+'%</span><span data-en>Fee '+feePct+'%</span></div><div class="lp-value">-'+fmt(feeAmount)+'</div></div>'+
-          '<div class="lp-box accent"><div class="lp-label"><span data-th>ได้รับ</span><span data-en>You receive</span></div><div class="lp-value">'+fmt(payout)+'</div></div>'+
+          '<div class="lp-box"><div class="lp-label"><span data-th>หัก '+feePct+'%</span><span data-en>Fee '+feePct+'%</span></div><div class="lp-value">-'+fmt2(feeAmount)+'</div></div>'+
+          '<div class="lp-box accent"><div class="lp-label"><span data-th>ได้รับ</span><span data-en>You receive</span></div><div class="lp-value">'+fmt2(payout)+'</div></div>'+
         '</div>';
       }
       html += '</div>';
@@ -763,8 +764,8 @@ function renderBoard(){
     '<div class="stat-grid">'+
       '<div class="stat-card"><div class="l"><span data-th>ช่องขายไปแล้วรวม</span><span data-en>Total spots sold</span></div><div class="v">'+totalSpotsSold+'</div></div>'+
       '<div class="stat-card"><div class="l"><span data-th>ยอดขายรวม</span><span data-en>Total sale value</span></div><div class="v">'+fmt(totalSaleValue)+'</div></div>'+
-      '<div class="stat-card"><div class="l"><span data-th>หักรวม</span><span data-en>Total fee deducted</span></div><div class="v">'+fmt(totalFee)+'</div></div>'+
-      '<div class="stat-card accent"><div class="l"><span data-th>ยอดที่จะได้รับรวม</span><span data-en>Total you receive</span></div><div class="v">'+fmt(totalPayout)+'</div></div>'+
+      '<div class="stat-card"><div class="l"><span data-th>หักรวม</span><span data-en>Total fee deducted</span></div><div class="v">'+fmt2(totalFee)+'</div></div>'+
+      '<div class="stat-card accent"><div class="l"><span data-th>ยอดที่จะได้รับรวม</span><span data-en>Total you receive</span></div><div class="v">'+fmt2(totalPayout)+'</div></div>'+
     '</div></div>';
 
   wrap.innerHTML = html;
@@ -783,10 +784,10 @@ function positionImgPreview(evt){
   if(prev.style.display !== 'block') return;
   var x = evt.clientX + 18;
   var y = evt.clientY + 18;
-  var maxX = window.innerWidth - 170;
-  var maxY = window.innerHeight - 170;
-  if(x > maxX) x = evt.clientX - 176;
-  if(y > maxY) y = evt.clientY - 176;
+  var maxX = window.innerWidth - 280;
+  var maxY = window.innerHeight - 280;
+  if(x > maxX) x = evt.clientX - 286;
+  if(y > maxY) y = evt.clientY - 286;
   prev.style.left = x + 'px';
   prev.style.top = y + 'px';
 }
