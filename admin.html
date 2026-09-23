@@ -3039,6 +3039,20 @@ function normalizeDate(str, assumedYear){
   str = (str||'').trim();
   if(!str) return '';
   if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  // Handles "DD/MM/YYYY" or "DD/MM/YYYY HH:MM(:SS)" — the format the sheet's
+  // "Systerm Date" column uses. Native Date() misreads this as US-style
+  // MM/DD/YYYY and silently fails whenever the day is > 12 (e.g. "18/09/2026"
+  // has no month 18), dropping the date — and any time portion is discarded
+  // since only the date itself is needed.
+  var dmy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
+  if(dmy){
+    var d2 = +dmy[1], mo2 = +dmy[2], y2 = +dmy[3];
+    if(mo2 >= 1 && mo2 <= 12 && d2 >= 1 && d2 <= 31){
+      return y2 + '-' + String(mo2).padStart(2,'0') + '-' + String(d2).padStart(2,'0');
+    }
+  }
+
   var monthNames = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
   // Handles "24 Aug" / "24 Aug 2026" / "Aug 24" — the common exported formats
   // that lack a year, which native Date() parses into the wrong year silently.
@@ -3139,11 +3153,9 @@ function reparseCsvNow(){
     // Auto-fill Board Name / Price per Spot from the sheet's own side-panel
     // labels when found — still fully editable/clearable afterward, this is
     // just a starting guess so you don't have to type it in by hand.
+    // Board Name comes from the "Board Name" cell inside the sheet content
+    // itself, not the uploaded filename.
     var meta = scanCsvBoardMeta(parseCSV(lastCsvFileText));
-    // The sheet tab name (from the filename) is usually kept more up to date
-    // than the "Board Name" cell inside the sheet, so it wins when present.
-    var nameFromFile = boardNameFromFilename(lastCsvFileName);
-    if(nameFromFile) meta.boardName = nameFromFile;
     if(meta.boardName) document.getElementById('csvBoardName').value = meta.boardName;
     if(meta.pricePerSlot) document.getElementById('csvPricePerSpot').value = meta.pricePerSlot;
     if(meta.sellerEmail){
