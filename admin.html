@@ -482,6 +482,17 @@
       </div>
     </div>
 
+    <div class="field">
+      <label><span data-th>สีสติกเกอร์</span><span data-en>Sticker color</span></label>
+      <div class="color-field" onclick="openPicker('stickerOverlay')">
+        <span class="color-field-inner">
+          <span id="stickerDot" class="color-dot" style="display:none;"></span>
+          <span id="stickerFieldText" class="placeholder"></span>
+        </span>
+        <span class="chev">⌄</span>
+      </div>
+    </div>
+
     <div class="row2">
       <div class="field">
         <div class="row-label"><label><span data-th>จำนวนช่องทั้งหมด</span><span data-en>Total spots</span></label><span class="hint"><span data-th>รวมจากฮิต+ไม่ฮิต</span><span data-en>= hit + non-hit qty</span></span></div>
@@ -779,6 +790,17 @@
     <div class="pick-option" onclick="pickColor('#2E7D46','เขียว','Green')"><span class="swatch" style="background:#2E7D46;"></span><span class="name"><span data-th>เขียว</span><span data-en>Green</span></span></div>
     <div class="pick-option" onclick="pickColor('#8B2E22','แดง','Red')"><span class="swatch" style="background:#8B2E22;"></span><span class="name"><span data-th>แดง</span><span data-en>Red</span></span></div>
     <div class="pick-option" onclick="pickColor('#1B1B1B','ดำ','Black')"><span class="swatch" style="background:#1B1B1B;"></span><span class="name"><span data-th>ดำ</span><span data-en>Black</span></span></div>
+  </div>
+</div>
+
+<!-- STICKER COLOR PICKER -->
+<div class="overlay" id="stickerOverlay" onclick="if(event.target===this) closePicker('stickerOverlay')">
+  <div class="pick-modal">
+    <div class="pick-modal-head"><h3><span data-th>สีสติกเกอร์</span><span data-en>Sticker color</span></h3><span class="close-x" onclick="closePicker('stickerOverlay')">✕</span></div>
+    <div class="pick-option" onclick="pickSticker('#F5C518','เหลือง','Yellow')"><span class="swatch" style="background:#F5C518;"></span><span class="name"><span data-th>เหลือง</span><span data-en>Yellow</span></span></div>
+    <div class="pick-option" onclick="pickSticker('#2E6FD9','น้ำเงิน','Blue')"><span class="swatch" style="background:#2E6FD9;"></span><span class="name"><span data-th>น้ำเงิน</span><span data-en>Blue</span></span></div>
+    <div class="pick-option" onclick="pickSticker('#2E7D46','เขียว','Green')"><span class="swatch" style="background:#2E7D46;"></span><span class="name"><span data-th>เขียว</span><span data-en>Green</span></span></div>
+    <div class="pick-option" onclick="pickSticker('#FFFFFF','ขาว','White')"><span class="swatch" style="background:#FFFFFF; border:1px solid var(--gray-line);"></span><span class="name"><span data-th>ขาว</span><span data-en>White</span></span></div>
   </div>
 </div>
 
@@ -1535,6 +1557,7 @@ function recalc(){
 
 // ============== COLOR PICKER ==============
 var boardColor = null; // {hex, th, en} — persisted with the board so it survives edit/reload
+var stickerColor = null; // {hex, th, en} — same pattern as boardColor
 
 function openPicker(id){ document.getElementById(id).classList.add('open'); }
 function closePicker(id){ document.getElementById(id).classList.remove('open'); }
@@ -1585,6 +1608,27 @@ function pickColor(hex, nameTh, nameEn){
   boardColor = {hex:hex, th:nameTh, en:nameEn};
   setColorField(hex, nameTh, nameEn);
   closePicker('colorOverlay');
+}
+
+function setStickerField(hex, nameTh, nameEn){
+  var dot = document.getElementById('stickerDot');
+  var textEl = document.getElementById('stickerFieldText');
+  if(!hex){
+    dot.style.display = 'none';
+    textEl.classList.add('placeholder');
+    textEl.textContent = '';
+    return;
+  }
+  dot.style.background = hex; dot.style.display = 'inline-block';
+  if(hex.toUpperCase() === '#FFFFFF') dot.style.border = '1px solid var(--gray-line)'; else dot.style.border = 'none';
+  textEl.classList.remove('placeholder');
+  textEl.innerHTML = '<span data-th>'+nameTh+'</span><span data-en>'+nameEn+'</span>';
+}
+
+function pickSticker(hex, nameTh, nameEn){
+  stickerColor = {hex:hex, th:nameTh, en:nameEn};
+  setStickerField(hex, nameTh, nameEn);
+  closePicker('stickerOverlay');
 }
 
 // ============== SELLER PICKER ==============
@@ -2290,6 +2334,7 @@ function maybeAutoSave(){
     boardName: boardName,
     status: boardStatus,
     color: boardColor,
+    stickerColor: stickerColor,
     sellerFeePct: sellerFeePct,
     showPricingToSeller: showPricingToSeller,
     createdAt: existing.createdAt || new Date().toISOString(),
@@ -2398,6 +2443,7 @@ function confirmBoard(){
     boardName: boardName,
     status: boardStatus,
     color: boardColor,
+    stickerColor: stickerColor,
     sellerFeePct: sellerFeePct,
     showPricingToSeller: showPricingToSeller,
     createdAt: existing && existing.createdAt ? existing.createdAt : new Date().toISOString(),
@@ -2920,6 +2966,8 @@ function resetForm(){
   document.getElementById('boardName').value = '';
   boardColor = null;
   setColorField(null);
+  stickerColor = null;
+  setStickerField(null);
 
   document.getElementById('pricePerSpot').value = '';
   document.getElementById('payoutRate').value = 70;
@@ -2961,6 +3009,9 @@ function loadBoardIntoForm(entry){
 
   boardColor = entry.color || null;
   setColorField(boardColor ? boardColor.hex : null, boardColor ? boardColor.th : null, boardColor ? boardColor.en : null);
+
+  stickerColor = entry.stickerColor || null;
+  setStickerField(stickerColor ? stickerColor.hex : null, stickerColor ? stickerColor.th : null, stickerColor ? stickerColor.en : null);
 
   sellerFeePct = (entry.sellerFeePct != null) ? entry.sellerFeePct : 5;
   document.getElementById('sellerFeePct').value = sellerFeePct;
@@ -3189,7 +3240,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   var idx = {
     product: col('product'), sku: col('sku'), nickname: col('nick name'),
     condition: col('condition'), price: col('price'), sasomLink: col('sasom link'),
-    imgLink: col('img link'),
+    imgLink: col('img link'), remark: col('remark'),
     // "System Sold" / "Systerm Date" are the system-tracked columns and take
     // priority when present (more reliable than the manually-typed "Sold" /
     // "Date" columns) — falls back to the old columns for older exports that
@@ -3200,6 +3251,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   };
   if(idx.condition < 0 || idx.price < 0) throw new Error('CSV is missing required "Condition" or "Price" columns');
 
+  var lastOneItem = null; // {name, price} — set when a row is marked "Last One" in the Remark column
   var groups = {}; // key -> {name, sku, img, condition, price, units:[{sold,date,buyerName,buyerEmail}]}
   var order = [];
   var hitRows = []; // used only in cutoff mode: individual hit rows, in order, never merged
@@ -3219,11 +3271,20 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     var date = normalizeDate(get(idx.date), assumedYear);
     var buyerName = get(idx.buyerName);
     var buyerEmail = get(idx.buyerEmail);
+    var remark = get(idx.remark).toLowerCase();
 
-    if(!product && !condition && !price) continue; // skip fully blank rows
+    if(!product && !condition && !price && remark !== 'last one') continue; // skip fully blank rows
+
+    var name = nickname ? (product ? (product + ' (' + nickname + ')') : nickname) : (product || condition || 'Item');
+
+    // A row marked "Last One" in the Remark column is the board's Last One
+    // Prize — pulled out separately, never counted as a Hit/Non-hit slot.
+    if(remark === 'last one'){
+      if(product || price) lastOneItem = {name: name, price: price};
+      continue;
+    }
 
     dataRowIndex++;
-    var name = nickname ? (product ? (product + ' (' + nickname + ')') : nickname) : (product || condition || 'Item');
 
     if(useCutoff && dataRowIndex <= hitCutoff){
       hitRows.push({name:name, sku:sku, img:imgLink, condition:condition, price:price, sold:sold, date:date, buyerName:buyerName, buyerEmail:buyerEmail});
@@ -3342,6 +3403,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     hitItems: hitItems,
     nonHitItems: nonHitItems,
     liveSessions: liveSessions,
+    lastOneItem: lastOneItem,
     hitCount: hitItems.length,
     nonHitCount: nonHitItems.reduce(function(sum,n){ return sum+n.qty; }, 0),
     sessionCount: liveSessions.length,
@@ -3365,6 +3427,7 @@ function renderCsvPreview(result){
   if(meta.pricePerSlot) found.push('Price (slot): '+fmt(meta.pricePerSlot));
   if(meta.sellerEmail) found.push('Seller Email: '+meta.sellerEmail);
   if(meta.statusBoard) found.push('Status Board: '+meta.statusBoard);
+  if(result.lastOneItem) found.push('Last One Prize: "'+result.lastOneItem.name+'" — '+fmt(result.lastOneItem.price));
   if(found.length){
     detectedHtml = '<div class="hint" style="color:#2E7D32; background:#EAF7EA; padding:10px 14px; border-radius:10px; margin-top:10px;">'+
       '<b><span data-th>อ่านค่าจากไฟล์ให้อัตโนมัติ (แก้ไขได้ถ้าไม่ตรง):</span><span data-en>Auto-detected from the file (edit if wrong):</span></b><br>'+
@@ -3388,6 +3451,7 @@ function confirmCsvImport(){
   hitItems = parsedCsvImport.hitItems;
   nonHitItems = parsedCsvImport.nonHitItems;
   liveSessions = parsedCsvImport.liveSessions;
+  if(parsedCsvImport.lastOneItem) lastOneItem = parsedCsvImport.lastOneItem;
 
   recalc();
   renderLiveHistory();
