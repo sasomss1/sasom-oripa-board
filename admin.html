@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SASOM Oripa Board - Create</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -3171,6 +3169,7 @@ function scanCsvBoardMeta(table){
   var meta = {};
   var wanted = {
     'price (slot)': 'pricePerSlot',
+    'price / slot': 'pricePerSlot', // newer "ORIPA Boards & Checks" template wording
     'board name': 'boardName',
     'seller email': 'sellerEmail',
     'status board': 'statusBoard'
@@ -3178,7 +3177,12 @@ function scanCsvBoardMeta(table){
   for(var r = 0; r < table.length; r++){
     var row = table[r];
     for(var c = 0; c < row.length; c++){
-      var label = (row[c] || '').trim().toLowerCase();
+      var raw = (row[c] || '').trim();
+      if(!raw) continue;
+      // Some templates put a sub-note on a second line inside the same label
+      // cell (e.g. "Board Name\nAuto", "Price (slot)\nLIVE: no action") — only
+      // the first line is the actual label, so match against that.
+      var label = raw.split('\n')[0].trim().toLowerCase();
       if(wanted[label] && row[c+1] != null && row[c+1].trim() !== ''){
         meta[wanted[label]] = row[c+1].trim();
       }
@@ -3189,6 +3193,9 @@ function scanCsvBoardMeta(table){
   }
   if(meta.statusBoard != null){
     var s = meta.statusBoard.toUpperCase();
+    // Newer template also uses "NEW" for a board that hasn't gone live yet —
+    // same meaning as PREPARE in this app.
+    if(s === 'NEW') s = 'PREPARE';
     meta.statusBoard = (s === 'ON' || s === 'OFF' || s === 'PREPARE') ? s : null;
   }
   return meta;
@@ -3237,9 +3244,26 @@ function reparseCsvNow(){
 function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   var table = parseCSV(text);
   if(!table.length) throw new Error('Empty file');
-  var header = table[0].map(function(h){ return h.trim().toLowerCase(); });
+
+  // The item table's header row ("Order ID, Location, No, IMG, Product, ...")
+  // isn't always row 0 — newer sheet templates ("ORIPA Boards & Checks")
+  // stack a Board Setup/Board Design info block in several rows ABOVE the
+  // item table instead of beside it, pushing the real header row down.
+  // Find it by content ("Order ID" is the first column's name) rather than
+  // assuming a fixed position, so either layout works.
+  var headerRowIdx = -1;
+  for(var hr = 0; hr < table.length; hr++){
+    for(var hc = 0; hc < table[hr].length; hc++){
+      if((table[hr][hc] || '').trim().toLowerCase() === 'order id'){ headerRowIdx = hr; break; }
+    }
+    if(headerRowIdx >= 0) break;
+  }
+  if(headerRowIdx === -1) throw new Error('Could not find the item table header row (looking for an "Order ID" column)');
+
+  var header = table[headerRowIdx].map(function(h){ return h.trim().toLowerCase(); });
   function col(name){ return header.indexOf(name); }
   var idx = {
+    no: col('no'),
     product: col('product'), sku: col('sku'), nickname: col('nick name'),
     condition: col('condition'), price: col('price'), sasomLink: col('sasom link'),
     imgLink: col('img link'), remark: col('remark'),
@@ -3260,7 +3284,7 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
   var useCutoff = hitCutoff > 0;
 
   var dataRowIndex = 0; // counts only real data rows (1-based), used against hitCutoff
-  for(var r = 1; r < table.length; r++){
+  for(var r = headerRowIdx + 1; r < table.length; r++){
     var row = table[r];
     var get = function(i){ return i >= 0 && row[i] != null ? row[i].trim() : ''; };
     var product = get(idx.product);
@@ -3274,6 +3298,15 @@ function parseCsvImportData(text, assumedYear, hitCutoff, nonHitQtyThreshold){
     var buyerName = get(idx.buyerName);
     var buyerEmail = get(idx.buyerEmail);
     var remark = get(idx.remark).toLowerCase();
+    var noVal = get(idx.no);
+
+    // The newer template (v261102+) inserts an extra "who fills this column"
+    // instructions row right under the header (e.g. "Ops / system: order
+    // number after the sale..."), before the real item rows start. The real
+    // "No" column is always a plain integer (0, 1, 2, ...) on actual item
+    // rows, so any row where "No" is filled in but isn't a plain number is
+    // that instructions row (or similar), not a real item — skip it.
+    if(idx.no >= 0 && noVal !== '' && !/^\d+$/.test(noVal)) continue;
 
     if(!product && !condition && !price && remark !== 'last one') continue; // skip fully blank rows
 

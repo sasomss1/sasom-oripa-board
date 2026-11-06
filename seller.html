@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SASOM Oripa Board - Seller Portal</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -768,6 +766,24 @@ function renderBoard(){
       '<div class="stat-card"><div class="l"><span data-th>ยอดขายรวม</span><span data-en>Total sale value</span></div><div class="v">'+fmt(totalSaleValue)+'</div></div>'+
       '<div class="stat-card"><div class="l"><span data-th>หักรวม</span><span data-en>Total fee deducted</span></div><div class="v">'+fmt2(totalFee)+'</div></div>'+
       '<div class="stat-card accent"><div class="l"><span data-th>ยอดที่จะได้รับรวม</span><span data-en>Total you receive</span></div><div class="v">'+fmt2(totalPayout)+'</div></div>'+
+    '</div></div>';
+
+  // Remaining Hit / Non-hit summary — how many slots of each type are still
+  // left in the board, based on sold qty per entry (soldQtyByUid, computed
+  // above from every non-cancelled live session's recorded sales).
+  var totalHitQty = 0, totalNonHitQty = 0, soldHitQty = 0, soldNonHitQty = 0;
+  (b.entriesSnapshot||[]).forEach(function(e){
+    var key = e.uid || e.label;
+    var sold = Math.min(soldQtyByUid[key] || 0, e.qty);
+    if(e.nonHit){ totalNonHitQty += e.qty; soldNonHitQty += sold; }
+    else { totalHitQty += e.qty; soldHitQty += sold; }
+  });
+  var remainingHit = totalHitQty - soldHitQty;
+  var remainingNonHit = totalNonHitQty - soldNonHitQty;
+  html += '<div class="card"><h2><span data-th>เหลือในบอร์ด</span><span data-en>Remaining in Board</span></h2>'+
+    '<div class="stat-grid">'+
+      '<div class="stat-card"><div class="l"><span data-th>Hit เหลือ</span><span data-en>Hit remaining</span></div><div class="v">'+remainingHit+' / '+totalHitQty+'</div></div>'+
+      '<div class="stat-card"><div class="l"><span data-th>Non-Hit เหลือ</span><span data-en>Non-Hit remaining</span></div><div class="v">'+remainingNonHit+' / '+totalNonHitQty+'</div></div>'+
     '</div></div>';
 
   wrap.innerHTML = html;
