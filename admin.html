@@ -746,16 +746,20 @@
     <div class="sasom-header-group"><span class="sasom-wordmark">SASOM</span><h1><span data-th>สรุปกำไร/ขาดทุน</span><span data-en>Profit / Loss Summary</span></h1></div>
     <div class="head-right">
       <button class="change-btn" onclick="exportSummaryCSV()"><span data-th>ส่งออก</span><span data-en>Export</span></button>
+      <button class="change-btn danger" onclick="deleteSelectedSummaryBoards()"><span data-th>ลบที่เลือก</span><span data-en>Delete Selected</span></button>
       <button class="add-btn" onclick="location.href='admin.html'">+ <span data-th>สร้างบอร์ดใหม่</span><span data-en>Create new board</span></button>
       <button class="change-btn" onclick="location.href='admin.html?view=boards'"><span data-th>บอร์ดทั้งหมด</span><span data-en>All Boards</span></button>
-      
+
       <label class="switch dark-switch"><input type="checkbox" id="darkModeToggle" onchange="setDarkMode(this.checked)"><span class="switch-track"><span class="switch-thumb"></span></span></label><span class="dark-switch-label"><span data-th>มืด</span><span data-en>Dark</span></span>
     </div>
   </div>
-
+  <div id="summaryListSyncStatus" style="font-size:12px; color:var(--sub); margin-bottom:16px;"></div>
 
   <div class="boards-filter-row">
-    <div style="flex:1;"></div>
+    <div style="flex:1;">
+      <label style="font-size:12.5px; font-weight:500; margin-bottom:6px; display:block;"><span data-th>ค้นหา (อีเมลหรือชื่อบอร์ด)</span><span data-en>Search (email or board name)</span></label>
+      <input type="text" id="summarySearchInput" placeholder="" oninput="renderSummaryList()">
+    </div>
     <div class="toggle-pill" id="summaryGroupByToggle" style="align-self:flex-end;">
       <div class="opt none active" onclick="setSummaryGroupBy('none')"><span data-th>ไม่จัดกลุ่ม</span><span data-en>No grouping</span></div>
       <div class="opt seller" onclick="setSummaryGroupBy('seller')"><span data-th>จัดตาม Seller</span><span data-en>Group by seller</span></div>
@@ -2818,6 +2822,14 @@ function renderSummaryList(){
   // evaluated as profit/loss/break-even.
   var priced = savedBoards.filter(function(b){ return b.stats && b.stats.pricePerSpot > 0; });
 
+  var summaryQueryEl = document.getElementById('summarySearchInput');
+  var summaryQuery = summaryQueryEl ? (summaryQueryEl.value || '').trim().toLowerCase() : '';
+  if(summaryQuery){
+    priced = priced.filter(function(b){
+      return (b.sellerEmail||'').toLowerCase().indexOf(summaryQuery) >= 0 || (b.boardName||'').toLowerCase().indexOf(summaryQuery) >= 0;
+    });
+  }
+
   var countProfit = 0, countLoss = 0, countBreakEven = 0, totalProfit = 0;
   var withFin = priced.map(function(b){
     var fin = computeBoardFinancials(b);
@@ -2841,7 +2853,7 @@ function renderSummaryList(){
   document.getElementById('sumTotalProfit').textContent = fmt(totalProfit);
 
   if(!withFin.length){
-    wrap.innerHTML = '<p class="hint">No priced boards yet.</p>';
+    wrap.innerHTML = summaryQuery ? '<p class="hint">No boards match your search.</p>' : '<p class="hint">No priced boards yet.</p>';
     return;
   }
 
@@ -2958,6 +2970,34 @@ function deleteSelectedBoards(){
     document.getElementById('boardsListSyncStatus').textContent = 'Deleted ' + okIds.length + ' of ' + ids.length + ' board(s).';
   }).catch(function(err){
     document.getElementById('boardsListSyncStatus').textContent = 'Delete failed: ' + err.message;
+  });
+}
+
+// Same bulk-delete flow as deleteSelectedBoards(), but for the checkboxes
+// selected on the Summary (Profit/Loss) view.
+function deleteSelectedSummaryBoards(){
+  var ids = Object.keys(selectedSummaryIds);
+  if(!ids.length){ alert('Select at least one board first / กรุณาเลือกบอร์ดก่อนอย่างน้อย 1 บอร์ด'); return; }
+  if(!confirm('Delete ' + ids.length + ' selected board(s)? This cannot be undone.\nลบ ' + ids.length + ' บอร์ดที่เลือก? กู้คืนไม่ได้')) return;
+
+  document.getElementById('summaryListSyncStatus').innerHTML = '<span class="inline-loading"><span class="inline-spinner"></span>Deleting ' + ids.length + ' board(s)...</span>';
+
+  var requests = ids.map(function(boardId){
+    return fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'deleteBoard', boardId: boardId, token: googleIdToken }) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){ return {boardId: boardId, res: res}; });
+  });
+
+  Promise.all(requests).then(function(results){
+    var authFail = results.find(function(r){ return r.res && r.res.authError; });
+    if(authFail){ signOutAdmin(authFail.res.error); return; }
+    var okIds = results.filter(function(r){ return r.res && r.res.ok; }).map(function(r){ return r.boardId; });
+    savedBoards = savedBoards.filter(function(b){ return okIds.indexOf(b.boardId) === -1; });
+    selectedSummaryIds = {};
+    renderSummaryList();
+    document.getElementById('summaryListSyncStatus').textContent = 'Deleted ' + okIds.length + ' of ' + ids.length + ' board(s).';
+  }).catch(function(err){
+    document.getElementById('summaryListSyncStatus').textContent = 'Delete failed: ' + err.message;
   });
 }
 
