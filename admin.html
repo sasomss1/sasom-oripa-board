@@ -2334,6 +2334,7 @@ function maybeAutoSave(){
   if(!existing) return; // only auto-sync boards that have already been Confirmed once
   var entry = {
     boardId: existing.boardId,
+    sheetBoardId: existing.sheetBoardId || null,
     sellerEmail: currentSellerEmail,
     boardName: boardName,
     status: boardStatus,
@@ -2437,12 +2438,16 @@ function confirmBoard(){
   // over matching by name/email — otherwise renaming a board, changing its
   // seller, or re-importing a CSV that alters those fields would fail to
   // match the old entry and silently create a duplicate board instead of
-  // updating it.
+  // updating it. A CSV re-import carries the sheet's own "Board ID" in
+  // pendingSheetBoardId, which also counts as a match (even if the board was
+  // renamed or moved to a different seller since the last import) — it's
+  // checked first, then falling back to the same seller email + board name.
   var existing = editingBoardId
     ? savedBoards.find(function(b){ return b.boardId === editingBoardId; })
-    : savedBoards.find(function(b){ return b.sellerEmail===currentSellerEmail && b.boardName===boardName; });
+    : findExistingBoardForImport(pendingSheetBoardId, boardName, currentSellerEmail);
   var entry = {
     boardId: existing ? existing.boardId : null,
+    sheetBoardId: pendingSheetBoardId || (existing ? existing.sheetBoardId : null) || null,
     sellerEmail: currentSellerEmail,
     boardName: boardName,
     status: boardStatus,
@@ -2551,7 +2556,7 @@ function buildBoardRow(b){
     '<input type="checkbox" class="board-select-chk" data-id="'+b.boardId+'" '+(selectedBoardIds[b.boardId] ? 'checked' : '')+' onchange="onBoardCheckChange(\''+b.boardId+'\', this.checked)">'+
     '<div class="board-row-main">'+
       '<div class="board-row-title">'+b.boardName+' <span class="status-badge '+(b.status||'PREPARE').toLowerCase()+'">'+(b.status||'PREPARE')+'</span>'+pnlBadge+'</div>'+
-      '<div class="board-row-sub">'+b.sellerEmail+(b.createdAt ? ' · '+formatDateDMY(b.createdAt.slice(0,10)) : '')+'</div>'+
+      '<div class="board-row-sub">'+b.sellerEmail+(b.createdAt ? ' · '+formatDateDMY(b.createdAt.slice(0,10)) : '')+(b.sheetBoardId ? ' · Board ID: '+b.sheetBoardId : '')+'</div>'+
     '</div>'+
     '<div class="board-row-stats">'+
       '<div>Price/spot<b>'+fmt(b.stats.pricePerSpot)+'</b></div>'+
@@ -3003,6 +3008,7 @@ function deleteSelectedSummaryBoards(){
 
 function resetForm(){
   editingBoardId = null;
+  pendingSheetBoardId = null;
   document.getElementById('boardName').value = '';
   boardColor = null;
   setColorField(null);
@@ -3079,6 +3085,11 @@ function loadBoardIntoForm(entry){
 // ============== CSV IMPORT ==============
 var csvStatus = 'PREPARE';
 var parsedCsvImport = null; // {hitItems, nonHitItems, liveSessions, hitCount, nonHitCount, sessionCount}
+// The sheet's own "Board ID" cell (e.g. "d5cezvMwg92AsQ9rShHd"), when found in
+// the imported CSV — carried from preview into confirmBoard() so a re-import
+// of the same board (same Board ID, even if its name/seller changed) updates
+// the existing saved board instead of creating a duplicate.
+var pendingSheetBoardId = null;
 
 function openCsvImportModal(){
   document.getElementById('csvBoardName').value = document.getElementById('boardName').value || '';
@@ -3091,9 +3102,25 @@ function openCsvImportModal(){
   csvStatus = 'PREPARE';
   document.querySelectorAll('#csvImportOverlay .status-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.status === 'PREPARE'); });
   parsedCsvImport = null;
+  pendingSheetBoardId = null;
   var btn = document.getElementById('csvImportConfirmBtn');
   btn.style.opacity = '.4'; btn.style.pointerEvents = 'none';
   openPicker('csvImportOverlay');
+}
+
+// Finds the saved board (if any) that a CSV import with this sheetBoardId /
+// boardName / sellerEmail would overwrite — same priority order used by
+// confirmBoard(): a matching sheet Board ID wins first (survives renames),
+// otherwise fall back to the same seller email + board name.
+function findExistingBoardForImport(sheetBoardId, boardName, sellerEmail){
+  if(sheetBoardId){
+    var bySheetId = savedBoards.find(function(b){ return b.sheetBoardId && b.sheetBoardId === sheetBoardId; });
+    if(bySheetId) return bySheetId;
+  }
+  if(boardName && sellerEmail){
+    return savedBoards.find(function(b){ return b.sellerEmail === sellerEmail && b.boardName === boardName; });
+  }
+  return null;
 }
 
 function setCsvStatus(status){
@@ -3214,7 +3241,8 @@ function scanCsvBoardMeta(table){
     'seller email': 'sellerEmail',
     'status board': 'statusBoard',
     'envelope': 'envelopeName',
-    'sticker': 'stickerName'
+    'sticker': 'stickerName',
+    'board id': 'sheetBoardId'
   };
   for(var r = 0; r < table.length; r++){
     var row = table[r];
@@ -3525,12 +3553,27 @@ function renderCsvPreview(result){
   }
   var detectedHtml = '';
   var meta = result.detectedMeta || {};
+  pendingSheetBoardId = meta.sheetBoardId || null;
   var found = [];
   if(meta.boardName) found.push('Board Name: "'+meta.boardName+'"');
+  if(meta.sheetBoardId) found.push('Board ID: '+meta.sheetBoardId);
   if(meta.pricePerSlot) found.push('Price (slot): '+fmt(meta.pricePerSlot));
   if(meta.sellerEmail) found.push('Seller Email: '+meta.sellerEmail);
   if(meta.statusBoard) found.push('Status Board: '+meta.statusBoard);
+  if(meta.envelope) found.push('Envelope: '+meta.envelope.en);
+  if(meta.sticker) found.push('Sticker: '+meta.sticker.en);
   if(result.lastOneItem) found.push('Last One Prize: "'+result.lastOneItem.name+'" — '+fmt(result.lastOneItem.price));
+
+  // Tell the admin up front whether this import will overwrite an existing
+  // saved board (matched by the same sheet Board ID, or the same board name
+  // + seller email) or create a brand new one.
+  var existingMatch = findExistingBoardForImport(meta.sheetBoardId, meta.boardName, meta.sellerEmail);
+  if(existingMatch){
+    found.push('<b><span data-th>จะทับบอร์ดเดิม: </span><span data-en>Will update existing board: </span></b>"'+existingMatch.boardName+'" ('+existingMatch.sellerEmail+')');
+  } else {
+    found.push('<span data-th>จะสร้างบอร์ดใหม่</span><span data-en>Will create a new board</span>');
+  }
+
   if(found.length){
     detectedHtml = '<div class="hint" style="color:#2E7D32; background:#EAF7EA; padding:10px 14px; border-radius:10px; margin-top:10px;">'+
       '<b><span data-th>อ่านค่าจากไฟล์ให้อัตโนมัติ (แก้ไขได้ถ้าไม่ตรง):</span><span data-en>Auto-detected from the file (edit if wrong):</span></b><br>'+
